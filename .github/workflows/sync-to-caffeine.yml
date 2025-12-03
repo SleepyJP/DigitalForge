@@ -1,0 +1,56 @@
+﻿name: Sync to Caffeine.ai
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+      TARGET_OWNER: SleepyJP   # change if real target owner differs
+      TARGET_REPO: caffeine-ai # change if real target repo differs
+
+    steps:
+      - name: Checkout source repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prepare sync artifacts
+        run: |
+          rm -rf sync-output || true
+          mkdir -p sync-output
+          echo "Automated sync from ${GITHUB_REPOSITORY} at $(date -u)" > sync-output/README-sync.md
+          # COPY or BUILD the files you want synced into sync-output/
+
+      - name: Commit sync artifacts (local branch)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "actions@github.com"
+          git add sync-output || true
+          git commit -m "chore(sync): prepare artifacts for Caffeine.ai" || echo "No changes to commit"
+
+      - name: Push branch to target repo
+        env:
+          CAFFEINE_PAT: ${{ secrets.CAFFEINE_PAT }}
+        run: |
+          set -euo pipefail
+          BRANCH="sync-from-${GITHUB_REPOSITORY//\//-}-$(date +%s)"
+          git checkout -b "$BRANCH" || true
+          git remote add target "https://x-access-token:${CAFFEINE_PAT}@github.com/${{ env.TARGET_OWNER }}/${{ env.TARGET_REPO }}.git" || true
+          git push target HEAD:refs/heads/"$BRANCH" --set-upstream
+
+      - name: Create PR in target repo
+        env:
+          CAFFEINE_PAT: ${{ secrets.CAFFEINE_PAT }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y || true
+          sudo apt-get install -y gh jq || true
+          echo "$CAFFEINE_PAT" | gh auth login --with-token
+          gh pr create --title "Automated sync from ${GITHUB_REPOSITORY}" \
+                       --body "This PR was created automatically by the sync workflow from ${GITHUB_REPOSITORY}." \
+                       --head "$BRANCH" --base main --repo "${{ env.TARGET_OWNER }}/${{ env.TARGET_REPO }}"
