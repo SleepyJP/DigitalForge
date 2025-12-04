@@ -1,0 +1,12 @@
+﻿{
+  "name": "github-copilot-agent",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@octokit/auth-app": "^4.0.0",
+    "@octokit/rest": "^20.0.0"
+  },
+  "scripts": {
+    "start": "node index.js"
+  }
+}
