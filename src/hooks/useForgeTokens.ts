@@ -112,6 +112,11 @@ const TAX_TOKEN_ABI = [
 
 export { TAX_TOKEN_ABI, ERC20_ABI };
 
+// Tokens from previous contract versions that are dead/delisted — hide from gallery
+const HIDDEN_TOKENS: Set<string> = new Set([
+  '0x08b0e24d756a3e229015d2672ba50e327b050a66', // Old Paisley Protocol test token (liquidity removed)
+]);
+
 export interface ForgedTokenData {
   address: Address;
   tokenId: bigint;
@@ -189,40 +194,42 @@ export function useForgeTokens(offset: number = 0, limit: number = 50) {
   const tokens: ForgedTokenData[] = useMemo(() => {
     if (!tokenAddresses || !metadataResults) return [];
 
-    return tokenAddresses.map((addr, i) => {
-      const baseIdx = i * 4;
-      const taxIdx = i * 4;
+    return tokenAddresses
+      .map((addr, i) => {
+        const baseIdx = i * 4;
+        const taxIdx = i * 4;
 
-      const name = (metadataResults[baseIdx]?.result as string) || 'Unknown';
-      const symbol = (metadataResults[baseIdx + 1]?.result as string) || '???';
-      const decimals = (metadataResults[baseIdx + 2]?.result as number) || 18;
-      const totalSupply = (metadataResults[baseIdx + 3]?.result as bigint) || 0n;
+        const name = (metadataResults[baseIdx]?.result as string) || 'Unknown';
+        const symbol = (metadataResults[baseIdx + 1]?.result as string) || '???';
+        const decimals = (metadataResults[baseIdx + 2]?.result as number) || 18;
+        const totalSupply = (metadataResults[baseIdx + 3]?.result as bigint) || 0n;
 
-      const buyTax = taxResults ? (taxResults[taxIdx]?.result as bigint) : undefined;
-      const sellTax = taxResults ? (taxResults[taxIdx + 1]?.result as bigint) : undefined;
-      const tradingEnabled = taxResults ? (taxResults[taxIdx + 2]?.result as boolean) : undefined;
-      const creator = taxResults ? (taxResults[taxIdx + 3]?.result as Address) : '0x0000000000000000000000000000000000000000' as Address;
+        const buyTax = taxResults ? (taxResults[taxIdx]?.result as bigint) : undefined;
+        const sellTax = taxResults ? (taxResults[taxIdx + 1]?.result as bigint) : undefined;
+        const tradingEnabled = taxResults ? (taxResults[taxIdx + 2]?.result as boolean) : undefined;
+        const creator = taxResults ? (taxResults[taxIdx + 3]?.result as Address) : '0x0000000000000000000000000000000000000000' as Address;
 
-      return {
-        address: addr,
-        tokenId: BigInt(i),
-        creator,
-        createdAt: 0n, // V2 doesn't track creation time in factory
-        tokenType: 'FORGE', // V2 only creates FORGE tokens
-        name,
-        symbol,
-        decimals,
-        totalSupply,
-        buyTax,
-        sellTax,
-        tradingEnabled,
-      };
-    });
+        return {
+          address: addr,
+          tokenId: BigInt(i),
+          creator,
+          createdAt: 0n,
+          tokenType: 'FORGE',
+          name,
+          symbol,
+          decimals,
+          totalSupply,
+          buyTax,
+          sellTax,
+          tradingEnabled,
+        };
+      })
+      .filter((t) => !HIDDEN_TOKENS.has(t.address.toLowerCase()));
   }, [tokenAddresses, metadataResults, taxResults]);
 
   return {
     tokens,
-    totalCount: tokenCount ? Number(tokenCount) : 0,
+    totalCount: tokens.length,
     isLoading: addressesLoading,
   };
 }
