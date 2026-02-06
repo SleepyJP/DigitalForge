@@ -114,7 +114,7 @@ export { TAX_TOKEN_ABI, ERC20_ABI };
 
 // Tokens from previous contract versions that are dead/delisted — hide from gallery
 const HIDDEN_TOKENS: Set<string> = new Set([
-  '0x08b0e24d756a3e229015d2672ba50e327b050a66', // Old Paisley Protocol test token (liquidity removed)
+  '0x08b04ad71b005d0c544f661c6775922638ac0a66', // Old Paisley Protocol test token (liquidity removed)
 ]);
 
 export interface ForgedTokenData {
