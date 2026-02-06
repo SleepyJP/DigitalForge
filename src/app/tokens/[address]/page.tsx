@@ -12,7 +12,7 @@ import { RewardsClaimPanel } from '@/components/dashboard/RewardsClaimPanel';
 import { YourHoldingsPanel } from '@/components/dashboard/YourHoldingsPanel';
 import { LiveChat } from '@/components/dashboard/LiveChat';
 import { MessageBoard } from '@/components/dashboard/MessageBoard';
-import { useTaxTokenData } from '@/hooks/useForgeTokens';
+import { useTaxTokenData, isHiddenToken } from '@/hooks/useForgeTokens';
 import { getTokenMetadata, type StoredTokenMetadata } from '@/lib/tokenMetadataStore';
 import { ipfsToHttp, getFromLocalStorage } from '@/lib/ipfs';
 import { FORGED_TOKEN_ABI } from '@/lib/contracts';
@@ -44,7 +44,8 @@ export default function TokenPage() {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
 
   const tokenAddress = params.address as Address;
-  const { tokenData, isLoading, refetch } = useTaxTokenData(tokenAddress, userAddress);
+  const hidden = isHiddenToken(tokenAddress);
+  const { tokenData, isLoading, refetch } = useTaxTokenData(hidden ? undefined : tokenAddress, userAddress);
 
   // Enable trading contract write
   const {
@@ -102,6 +103,30 @@ export default function TokenPage() {
   };
 
   const isTaxToken = tokenData?.tokenType === 'FORGE';
+
+  if (hidden) {
+    return (
+      <div className="min-h-screen bg-void-black relative overflow-hidden">
+        <BackgroundEffects />
+        <Header />
+        <main className="relative z-10 pt-24 pb-20 px-4">
+          <div className="max-w-2xl mx-auto text-center mt-20">
+            <h1 className="font-orbitron font-bold text-4xl text-white mb-4">Token Not Found</h1>
+            <p className="text-gray-400 font-rajdhani text-lg mb-8">
+              This token has been delisted from THE DIGITAL FORGE.
+            </p>
+            <Link
+              href="/tokens"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-cyan-500 text-black font-orbitron font-bold rounded hover:bg-cyan-400 transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              Back to Gallery
+            </Link>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-void-black relative overflow-hidden">

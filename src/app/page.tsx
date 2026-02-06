@@ -3,9 +3,11 @@
 import Link from 'next/link';
 import Header from '@/components/Header';
 import { useForgeStats } from '@/hooks/useForge';
+import { HIDDEN_TOKEN_COUNT } from '@/hooks/useForgeTokens';
 
 export default function Home() {
   const { tokenCount, creationFee } = useForgeStats();
+  const visibleTokenCount = Math.max(0, tokenCount - HIDDEN_TOKEN_COUNT);
 
   return (
     <div className="bg-black text-white min-h-screen">
@@ -57,7 +59,7 @@ export default function Home() {
           {/* Stats Grid */}
           <div className="mt-20 w-full max-w-4xl grid grid-cols-2 md:grid-cols-4 gap-0 border border-gray-800 bg-gray-900/50 rounded overflow-hidden">
             <div className="p-6 border-r border-b md:border-b-0 border-gray-800 flex flex-col items-center">
-              <span className="text-4xl font-orbitron font-bold text-cyan-400">{tokenCount}</span>
+              <span className="text-4xl font-orbitron font-bold text-cyan-400">{visibleTokenCount}</span>
               <span className="text-xs uppercase tracking-widest text-gray-500 mt-2">Tokens Forged</span>
             </div>
             <div className="p-6 border-b md:border-b-0 md:border-r border-gray-800 flex flex-col items-center">

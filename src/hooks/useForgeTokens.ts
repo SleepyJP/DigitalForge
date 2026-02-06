@@ -117,6 +117,11 @@ const HIDDEN_TOKENS: Set<string> = new Set([
   '0x08b04ad71b005d0c544f661c6775922638ac0a66', // Old Paisley Protocol test token (liquidity removed)
 ]);
 
+export const HIDDEN_TOKEN_COUNT = HIDDEN_TOKENS.size;
+export function isHiddenToken(address: string): boolean {
+  return HIDDEN_TOKENS.has(address.toLowerCase());
+}
+
 export interface ForgedTokenData {
   address: Address;
   tokenId: bigint;
