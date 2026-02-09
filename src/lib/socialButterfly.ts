@@ -81,8 +81,8 @@ export class SocialButterflyBot {
    * Fetch current stats from the blockchain
    */
   async fetchStats(): Promise<ForgeStats> {
-    // In production, this would call the contract
-    // For now, return placeholder stats
+    // Stats are populated by on-chain reads when integrated with wagmi hooks
+    // This method returns the cached stats object
     return this.stats;
   }
 
@@ -155,8 +155,8 @@ POST ${this.apiEndpoint}/create-token
 4. Token deployed to your specified configuration
 
 ## Contract Addresses (PulseChain 369)
-- TheDigitalForge: [DEPLOYMENT_ADDRESS]
-- X402ForgePayment: [DEPLOYMENT_ADDRESS]
+- TheDigitalForge: 0x0F9eeD13C8820f7Ee6e46f3C383f40Ce4e540c84
+- X402ForgePayment: 0x18E58358DE79048e6A2F2B21C0A950282CE6126c
 
 ## Tax Mechanisms Available
 1. Treasury - Route fees to specified wallet

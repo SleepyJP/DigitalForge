@@ -8,3 +8,4 @@ export { TokenStats } from './TokenStats';
 export { YourHoldingsPanel } from './YourHoldingsPanel';
 export { LiveChat } from './LiveChat';
 export { MessageBoard } from './MessageBoard';
+export { OwnerAdminPanel } from './OwnerAdminPanel';

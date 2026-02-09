@@ -1,11 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 export default function Header() {
   const pathname = usePathname();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-cyan-500/20">
@@ -21,7 +23,7 @@ export default function Header() {
             </span>
           </Link>
 
-          {/* Navigation */}
+          {/* Navigation - Desktop */}
           <nav className="hidden md:flex items-center gap-6">
             <NavLink href="/" active={pathname === '/'}>
               Home
@@ -43,8 +45,18 @@ export default function Header() {
             </NavLink>
           </nav>
 
-          {/* Wallet Connect */}
+          {/* Wallet Connect + Mobile Toggle */}
           <div className="flex items-center gap-4">
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden flex flex-col items-center justify-center w-10 h-10 gap-1.5"
+              aria-label="Toggle menu"
+            >
+              <span className={`block w-6 h-0.5 bg-cyan-400 transition-transform ${mobileMenuOpen ? 'rotate-45 translate-y-2' : ''}`} />
+              <span className={`block w-6 h-0.5 bg-cyan-400 transition-opacity ${mobileMenuOpen ? 'opacity-0' : ''}`} />
+              <span className={`block w-6 h-0.5 bg-cyan-400 transition-transform ${mobileMenuOpen ? '-rotate-45 -translate-y-2' : ''}`} />
+            </button>
             <ConnectButton.Custom>
               {({
                 account,
@@ -140,7 +152,59 @@ export default function Header() {
           </div>
         </div>
       </div>
+
+      {/* Mobile Navigation Dropdown */}
+      {mobileMenuOpen && (
+        <div className="md:hidden bg-black/95 backdrop-blur-md border-t border-cyan-500/20">
+          <nav className="flex flex-col px-4 py-3 gap-1">
+            <MobileNavLink href="/" active={pathname === '/'} onClick={() => setMobileMenuOpen(false)}>
+              Home
+            </MobileNavLink>
+            <MobileNavLink href="/forge" active={pathname === '/forge'} onClick={() => setMobileMenuOpen(false)}>
+              Forge Token
+            </MobileNavLink>
+            <MobileNavLink href="/tokens" active={pathname === '/tokens' || pathname.startsWith('/tokens/')} onClick={() => setMobileMenuOpen(false)}>
+              Token Gallery
+            </MobileNavLink>
+            <MobileNavLink href="/swap" active={pathname === '/swap'} onClick={() => setMobileMenuOpen(false)}>
+              Swap
+            </MobileNavLink>
+            <MobileNavLink href="/farms" active={pathname === '/farms' || pathname.startsWith('/farms/')} onClick={() => setMobileMenuOpen(false)}>
+              Farms
+            </MobileNavLink>
+            <MobileNavLink href="/docs" active={pathname === '/docs'} onClick={() => setMobileMenuOpen(false)}>
+              Grimoire
+            </MobileNavLink>
+          </nav>
+        </div>
+      )}
     </header>
+  );
+}
+
+function MobileNavLink({
+  href,
+  active,
+  onClick,
+  children,
+}: {
+  href: string;
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      className={`font-rajdhani font-semibold text-base py-2.5 px-3 rounded-lg transition-colors ${
+        active
+          ? 'text-cyan-400 bg-cyan-500/10'
+          : 'text-gray-400 hover:text-white hover:bg-white/5'
+      }`}
+    >
+      {children}
+    </Link>
   );
 }
 

@@ -5,7 +5,8 @@ import { Address, parseEther } from 'viem';
 // Update FACTORY_ADDRESS after deployment to PulseChain mainnet
 // ═══════════════════════════════════════════════════════════════
 
-// TODO: Replace after deployment
+// PENDING: PaisleyFarmFactory not yet deployed to PulseChain mainnet
+// Update this address after mainnet deployment — UI gracefully handles zero address
 export const FARM_FACTORY_ADDRESS: Address = '0x0000000000000000000000000000000000000000';
 
 export const FARM_CREATION_FEE = parseEther('500000'); // 500,000 PLS

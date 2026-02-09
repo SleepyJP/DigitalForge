@@ -33,7 +33,7 @@ export function DexScreenerChart({
     );
   }
 
-  const dexScreenerUrl = `https://dexscreener.com/${chainId}/${tokenAddress}?embed=1&theme=dark&trades=0&info=0`;
+  const dexScreenerUrl = `https://dexscreener.com/${chainId}/${tokenAddress}?embed=1&theme=dark&trades=1&info=0&chartType=candles`;
 
   return (
     <div className="glass-card rounded-xl border border-cyan-500/20 overflow-hidden">
