@@ -21,7 +21,7 @@ export function DexScreenerChart({
   chainId = 'pulsechain',
   height = 400,
 }: DexScreenerChartProps) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
 
   if (!tokenAddress) {
     return null;
