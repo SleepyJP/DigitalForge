@@ -5,12 +5,14 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagm
 import Link from 'next/link';
 import Header from '@/components/Header';
 import BackgroundEffects from '@/components/BackgroundEffects';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { DexScreenerChart } from '@/components/dashboard/DexScreenerChart';
 import { TokenStats } from '@/components/dashboard/TokenStats';
 import { HoldersPanel } from '@/components/dashboard/HoldersPanel';
 import { RewardsClaimPanel } from '@/components/dashboard/RewardsClaimPanel';
 import { YourHoldingsPanel } from '@/components/dashboard/YourHoldingsPanel';
 import { SwapWidget } from '@/components/dashboard/SwapWidget';
+import { TransactionFeed } from '@/components/dashboard/TransactionFeed';
 import { LiveChat } from '@/components/dashboard/LiveChat';
 import { MessageBoard } from '@/components/dashboard/MessageBoard';
 import { useTaxTokenData, isHiddenToken } from '@/hooks/useForgeTokens';
@@ -34,7 +36,9 @@ import { useState, useEffect, useCallback } from 'react';
 
 // =====================================================================
 // THE DIGITAL FORGE - Token Dashboard
-// Layout: Left = Token Info + Chart + Chat | Right = Swap + Holdings + Rewards + Holders
+// FULL WIDTH layout
+// LEFT: Token Image/Info -> DexScreener Chart -> Transactions -> Chat
+// RIGHT: Swap -> Holdings -> Rewards -> Holders
 // =====================================================================
 
 export default function TokenPage() {
@@ -48,7 +52,6 @@ export default function TokenPage() {
   const hidden = isHiddenToken(tokenAddress);
   const { tokenData, isLoading, refetch } = useTaxTokenData(hidden ? undefined : tokenAddress, userAddress);
 
-  // Enable trading contract write
   const {
     data: enableTradingHash,
     error: enableTradingError,
@@ -60,14 +63,10 @@ export default function TokenPage() {
     hash: enableTradingHash,
   });
 
-  // Refetch token data after trading is enabled
   useEffect(() => {
-    if (tradingEnabled) {
-      refetch();
-    }
+    if (tradingEnabled) refetch();
   }, [tradingEnabled, refetch]);
 
-  // Check if current user is the token owner
   const isOwner = userAddress && tokenData?.creator &&
     userAddress.toLowerCase() === tokenData.creator.toLowerCase();
 
@@ -79,7 +78,6 @@ export default function TokenPage() {
     });
   }, [tokenAddress, writeEnableTrading]);
 
-  // Load stored metadata
   useEffect(() => {
     const stored = getTokenMetadata(tokenAddress);
     if (stored) {
@@ -98,9 +96,21 @@ export default function TokenPage() {
   }, [tokenAddress]);
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(tokenAddress);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(tokenAddress);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback for non-secure contexts
+      const el = document.createElement('textarea');
+      el.value = tokenAddress;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   const isTaxToken = tokenData?.tokenType === 'FORGE';
@@ -134,10 +144,11 @@ export default function TokenPage() {
       <BackgroundEffects />
       <Header />
 
-      <main className="relative z-10 pt-20 pb-20 px-4">
-        <div className="max-w-[1400px] mx-auto">
-          {/* Back Button */}
-          <div className="flex items-center justify-between mb-4">
+      <main className="relative z-10 pt-20 pb-20 px-3 lg:px-6">
+        {/* FULL WIDTH - no max-width constraint */}
+        <div className="w-full">
+          {/* Top Bar: Back + Address */}
+          <div className="flex items-center justify-between mb-3">
             <Link
               href="/tokens"
               className="flex items-center gap-2 text-gray-400 hover:text-cyan-400 transition-colors font-rajdhani text-sm"
@@ -145,17 +156,26 @@ export default function TokenPage() {
               <ArrowLeft className="w-4 h-4" />
               Gallery
             </Link>
-
-            {/* Token Address + Actions */}
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-900/50 border border-gray-800 rounded-lg">
-                <span className="text-gray-400 font-mono text-xs">
-                  {tokenAddress.slice(0, 8)}...{tokenAddress.slice(-6)}
+              {/* FULL contract address — always copyable */}
+              <button
+                onClick={handleCopy}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-900/70 border border-cyan-500/30 rounded-lg hover:border-cyan-500/60 transition-all group cursor-pointer"
+                title="Click to copy contract address"
+              >
+                <span className="text-cyan-400 font-mono text-sm select-all hidden md:inline">
+                  {tokenAddress}
                 </span>
-                <button onClick={handleCopy} className="text-cyan-400 hover:text-cyan-300 transition-colors">
-                  {copied ? <CheckCircle size={14} /> : <Copy size={14} />}
-                </button>
-              </div>
+                <span className="text-cyan-400 font-mono text-sm select-all md:hidden">
+                  {tokenAddress.slice(0, 10)}...{tokenAddress.slice(-8)}
+                </span>
+                {copied ? (
+                  <CheckCircle size={16} className="text-green-400 flex-shrink-0" />
+                ) : (
+                  <Copy size={16} className="text-cyan-400 group-hover:text-cyan-300 flex-shrink-0" />
+                )}
+                {copied && <span className="text-green-400 text-xs font-rajdhani">Copied!</span>}
+              </button>
               <a
                 href={`https://scan.pulsechain.com/token/${tokenAddress}`}
                 target="_blank"
@@ -165,12 +185,16 @@ export default function TokenPage() {
                 <ExternalLink size={14} />
               </a>
               <button
-                onClick={() => {
-                  const url = window.location.href;
-                  if (navigator.share) {
-                    navigator.share({ title: tokenData?.name, url });
-                  } else {
-                    navigator.clipboard.writeText(url);
+                onClick={async () => {
+                  try {
+                    const url = window.location.href;
+                    if (navigator.share) {
+                      await navigator.share({ title: tokenData?.name || '', url });
+                    } else {
+                      await navigator.clipboard.writeText(url);
+                    }
+                  } catch {
+                    // User cancelled share or clipboard failed — ignore
                   }
                 }}
                 className="p-1.5 bg-gray-900/50 border border-gray-800 rounded-lg text-purple-400 hover:text-purple-300 hover:border-purple-500/50 transition-all"
@@ -183,90 +207,89 @@ export default function TokenPage() {
           {isLoading ? (
             <div className="space-y-6">
               <div className="glass-card rounded-xl p-6 animate-pulse">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-16 h-16 bg-gray-800 rounded-xl" />
+                <div className="flex items-center gap-4">
+                  <div className="w-24 h-24 bg-gray-800 rounded-xl" />
                   <div>
-                    <div className="h-6 bg-gray-800 rounded w-32 mb-2" />
-                    <div className="h-4 bg-gray-800/50 rounded w-20" />
+                    <div className="h-8 bg-gray-800 rounded w-48 mb-2" />
+                    <div className="h-5 bg-gray-800/50 rounded w-24" />
                   </div>
                 </div>
               </div>
-              <div className="h-[500px] bg-gray-900/50 rounded-xl animate-pulse" />
+              <div className="h-[600px] bg-gray-900/50 rounded-xl animate-pulse" />
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
 
-              {/* ═══════════════════════════════════════════════════════ */}
-              {/* LEFT COLUMN - Token Info + Chart + Chat (8 cols)       */}
-              {/* ═══════════════════════════════════════════════════════ */}
+              {/* ════════════════════════════════════════════════════════════ */}
+              {/* LEFT COLUMN — 8/12 on desktop                              */}
+              {/* Token Image + Info -> Chart -> Transactions -> Chat         */}
+              {/* ════════════════════════════════════════════════════════════ */}
               <div className="lg:col-span-8 space-y-4">
 
-                {/* Token Header - Name, Symbol, Image, Description */}
-                <div className="glass-card rounded-xl border border-cyan-500/20 overflow-hidden">
-                  <div className="p-5">
-                    <div className="flex items-start gap-4">
-                      {/* Token Image */}
-                      {imageUrl ? (
-                        <div className="w-16 h-16 rounded-xl overflow-hidden border border-cyan-500/30 flex-shrink-0">
-                          <img src={imageUrl} alt={tokenData?.name} className="w-full h-full object-cover" />
-                        </div>
-                      ) : (
-                        <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-cyan-500/20 to-pink-500/20 flex items-center justify-center flex-shrink-0 border border-cyan-500/20">
-                          <span className="font-orbitron font-bold text-2xl text-cyan-400">
-                            {tokenData?.symbol?.slice(0, 2) || '??'}
-                          </span>
-                        </div>
-                      )}
+                {/* Token Header — Big Image + Info */}
+                <div className="glass-card rounded-xl border border-cyan-500/20 overflow-hidden p-5">
+                  <div className="flex items-start gap-5">
+                    {/* BIG Token Image */}
+                    {imageUrl ? (
+                      <div className="w-24 h-24 md:w-32 md:h-32 rounded-xl overflow-hidden border-2 border-cyan-500/30 flex-shrink-0 shadow-[0_0_20px_rgba(0,240,255,0.15)]">
+                        <img src={imageUrl} alt={tokenData?.name} className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="w-24 h-24 md:w-32 md:h-32 rounded-xl bg-gradient-to-br from-cyan-500/20 to-pink-500/20 flex items-center justify-center flex-shrink-0 border-2 border-cyan-500/20">
+                        <span className="font-orbitron font-bold text-4xl text-cyan-400">
+                          {tokenData?.symbol?.slice(0, 2) || '??'}
+                        </span>
+                      </div>
+                    )}
 
-                      {/* Token Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3 mb-1">
-                          <h1 className="font-orbitron font-bold text-2xl text-white truncate">
-                            {tokenData?.name || 'Loading...'}
-                          </h1>
-                          <span className="text-cyan-400 font-mono text-lg">${tokenData?.symbol}</span>
-                        </div>
+                    {/* Token Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-3 mb-2">
+                        <h1 className="font-orbitron font-bold text-2xl md:text-3xl text-white truncate">
+                          {tokenData?.name || 'Loading...'}
+                        </h1>
+                        <span className="text-cyan-400 font-mono text-xl">${tokenData?.symbol || '???'}</span>
+                      </div>
 
-                        <div className="flex items-center gap-2 mb-3">
+                      <div className="flex flex-wrap items-center gap-2 mb-3">
+                        <span
+                          className={`px-2.5 py-0.5 rounded text-xs font-rajdhani font-semibold ${
+                            tokenData?.tokenType === 'FORGE'
+                              ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                              : 'bg-gray-800 text-gray-400 border border-gray-700'
+                          }`}
+                        >
+                          {tokenData?.tokenType}
+                        </span>
+                        {tokenData?.tradingEnabled !== undefined && (
                           <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-rajdhani font-semibold ${
-                              tokenData?.tokenType === 'FORGE'
-                                ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
-                                : 'bg-gray-800 text-gray-400 border border-gray-700'
+                            className={`px-2.5 py-0.5 rounded text-xs font-rajdhani font-semibold ${
+                              tokenData.tradingEnabled
+                                ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                                : 'bg-red-500/20 text-red-400 border border-red-500/30'
                             }`}
                           >
-                            {tokenData?.tokenType}
+                            {tokenData.tradingEnabled ? 'TRADING LIVE' : 'TRADING PAUSED'}
                           </span>
-                          {tokenData?.tradingEnabled !== undefined && (
-                            <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-rajdhani font-semibold ${
-                                tokenData.tradingEnabled
-                                  ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                                  : 'bg-red-500/20 text-red-400 border border-red-500/30'
-                              }`}
-                            >
-                              {tokenData.tradingEnabled ? 'LIVE' : 'PAUSED'}
-                            </span>
-                          )}
-                        </div>
-
-                        {metadata?.description && (
-                          <p className="text-gray-400 text-sm font-rajdhani line-clamp-2">
-                            {metadata.description}
-                          </p>
                         )}
                       </div>
 
-                      {/* Social Links */}
-                      <div className="flex items-center gap-2 flex-shrink-0">
+                      {metadata?.description && (
+                        <p className="text-gray-400 text-sm font-rajdhani mb-3 line-clamp-3">
+                          {metadata.description}
+                        </p>
+                      )}
+
+                      {/* Social + Trade Links — inline */}
+                      <div className="flex flex-wrap items-center gap-2">
                         {metadata?.twitter && (
                           <a
                             href={metadata.twitter.startsWith('http') ? metadata.twitter : `https://twitter.com/${metadata.twitter.replace('@', '')}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="p-2 bg-gray-900/50 border border-gray-800 rounded-lg text-gray-400 hover:text-cyan-400 hover:border-cyan-500/50 transition-all"
+                            className="flex items-center gap-1.5 px-3 py-1 bg-gray-900/50 border border-gray-800 rounded-lg text-gray-400 hover:text-cyan-400 hover:border-cyan-500/50 transition-all text-xs font-rajdhani"
                           >
-                            <Twitter size={14} />
+                            <Twitter size={12} /> Twitter
                           </a>
                         )}
                         {metadata?.telegram && (
@@ -274,9 +297,9 @@ export default function TokenPage() {
                             href={metadata.telegram}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="p-2 bg-gray-900/50 border border-gray-800 rounded-lg text-gray-400 hover:text-cyan-400 hover:border-cyan-500/50 transition-all"
+                            className="flex items-center gap-1.5 px-3 py-1 bg-gray-900/50 border border-gray-800 rounded-lg text-gray-400 hover:text-cyan-400 hover:border-cyan-500/50 transition-all text-xs font-rajdhani"
                           >
-                            <MessageCircle size={14} />
+                            <MessageCircle size={12} /> Telegram
                           </a>
                         )}
                         {metadata?.website && (
@@ -284,65 +307,69 @@ export default function TokenPage() {
                             href={metadata.website}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="p-2 bg-gray-900/50 border border-gray-800 rounded-lg text-gray-400 hover:text-cyan-400 hover:border-cyan-500/50 transition-all"
+                            className="flex items-center gap-1.5 px-3 py-1 bg-gray-900/50 border border-gray-800 rounded-lg text-gray-400 hover:text-cyan-400 hover:border-cyan-500/50 transition-all text-xs font-rajdhani"
                           >
-                            <Globe size={14} />
+                            <Globe size={12} /> Website
                           </a>
                         )}
+                        <a
+                          href={`https://pulsex.mypinata.cloud/ipfs/bafybeib7qk2ukr5zqz5rkwrh3m4iswz6l52m6qdqxnpkrlhjkuo7wmebfe/#/?outputCurrency=${tokenAddress}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 px-3 py-1 bg-cyan-500/10 border border-cyan-500/20 rounded-lg text-cyan-400 hover:border-cyan-500/50 transition-all text-xs font-rajdhani"
+                        >
+                          <ExternalLink size={12} /> PulseX
+                        </a>
                         <a
                           href={`https://dexscreener.com/pulsechain/${tokenAddress}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="p-2 bg-gray-900/50 border border-gray-800 rounded-lg text-green-400 hover:text-green-300 hover:border-green-500/50 transition-all"
+                          className="flex items-center gap-1.5 px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400 hover:border-green-500/50 transition-all text-xs font-rajdhani"
                         >
-                          <ExternalLink size={14} />
+                          <Globe size={12} /> DexScreener
                         </a>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* DexScreener Chart - BIG */}
-                <DexScreenerChart tokenAddress={tokenAddress} height={600} />
+                {/* DexScreener Chart — BIG */}
+                <ErrorBoundary fallbackLabel="Chart">
+                  <DexScreenerChart tokenAddress={tokenAddress} height={600} />
+                </ErrorBoundary>
+
+                {/* Transaction Feed — Buys/Sells */}
+                <ErrorBoundary fallbackLabel="Transactions">
+                  <TransactionFeed
+                    tokenAddress={tokenAddress}
+                    tokenSymbol={tokenData?.symbol}
+                    tokenDecimals={tokenData?.decimals}
+                  />
+                </ErrorBoundary>
 
                 {/* Token Stats */}
-                <TokenStats tokenData={tokenData} imageUrl={imageUrl} />
-
-                {/* Quick Trade Links */}
-                <div className="flex items-center gap-3">
-                  <a
-                    href={`https://pulsex.mypinata.cloud/ipfs/bafybeib7qk2ukr5zqz5rkwrh3m4iswz6l52m6qdqxnpkrlhjkuo7wmebfe/#/?outputCurrency=${tokenAddress}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-500/10 to-pink-500/10 border border-cyan-500/20 rounded-lg hover:border-cyan-500/50 transition-all"
-                  >
-                    <ExternalLink className="w-4 h-4 text-cyan-400" />
-                    <span className="text-white font-rajdhani font-semibold text-sm">Trade on PulseX</span>
-                  </a>
-                  <a
-                    href={`https://dexscreener.com/pulsechain/${tokenAddress}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500/10 to-cyan-500/10 border border-green-500/20 rounded-lg hover:border-green-500/50 transition-all"
-                  >
-                    <Globe className="w-4 h-4 text-green-400" />
-                    <span className="text-white font-rajdhani font-semibold text-sm">DEX Screener</span>
-                  </a>
-                </div>
+                <ErrorBoundary fallbackLabel="Token Stats">
+                  <TokenStats tokenData={tokenData} imageUrl={imageUrl} />
+                </ErrorBoundary>
 
                 {/* Live Chat */}
-                <LiveChat tokenAddress={tokenAddress} />
+                <ErrorBoundary fallbackLabel="Live Chat">
+                  <LiveChat tokenAddress={tokenAddress} />
+                </ErrorBoundary>
 
                 {/* Message Board */}
-                <MessageBoard tokenAddress={tokenAddress} />
+                <ErrorBoundary fallbackLabel="Message Board">
+                  <MessageBoard tokenAddress={tokenAddress} />
+                </ErrorBoundary>
               </div>
 
-              {/* ═══════════════════════════════════════════════════════ */}
-              {/* RIGHT COLUMN - Swap + Holdings + Rewards + Holders     */}
-              {/* ═══════════════════════════════════════════════════════ */}
+              {/* ════════════════════════════════════════════════════════════ */}
+              {/* RIGHT COLUMN — 4/12 on desktop                             */}
+              {/* Swap -> Holdings -> Rewards -> Holders                      */}
+              {/* ════════════════════════════════════════════════════════════ */}
               <div className="lg:col-span-4 space-y-4">
 
-                {/* Owner Controls Panel */}
+                {/* Owner Controls */}
                 {isOwner && (
                   <div className="glass-card rounded-xl p-5 border border-orange-500/30 bg-gradient-to-br from-orange-500/10 to-pink-500/10">
                     <div className="flex items-center gap-3 mb-4">
@@ -395,53 +422,61 @@ export default function TokenPage() {
                     {enableTradingError && (
                       <div className="mt-2 p-2 rounded-lg bg-red-500/20 border border-red-500/30">
                         <p className="text-red-400 font-rajdhani text-xs">
-                          Error: {enableTradingError.message.slice(0, 80)}
+                          Error: {enableTradingError.message?.slice(0, 80) || 'Transaction failed'}
                         </p>
                       </div>
                     )}
                   </div>
                 )}
 
-                {/* SWAP WIDGET - THE MAIN ACTION */}
-                <SwapWidget
-                  tokenAddress={tokenAddress}
-                  tokenSymbol={tokenData?.symbol}
-                  tokenDecimals={tokenData?.decimals}
-                  onSwapSuccess={() => refetch()}
-                />
+                {/* SWAP WIDGET */}
+                <ErrorBoundary fallbackLabel="Swap">
+                  <SwapWidget
+                    tokenAddress={tokenAddress}
+                    tokenSymbol={tokenData?.symbol}
+                    tokenDecimals={tokenData?.decimals}
+                    onSwapSuccess={() => refetch()}
+                  />
+                </ErrorBoundary>
 
                 {/* Your Holdings */}
-                <YourHoldingsPanel
-                  tokenAddress={tokenAddress}
-                  tokenSymbol={tokenData?.symbol}
-                  tokenDecimals={tokenData?.decimals}
-                />
+                <ErrorBoundary fallbackLabel="Holdings">
+                  <YourHoldingsPanel
+                    tokenAddress={tokenAddress}
+                    tokenSymbol={tokenData?.symbol}
+                    tokenDecimals={tokenData?.decimals}
+                  />
+                </ErrorBoundary>
 
                 {/* Rewards Panel */}
                 {isTaxToken && (
-                  <RewardsClaimPanel
-                    tokenAddress={tokenAddress}
-                    tokenSymbol={tokenData?.symbol}
-                    pendingRewards={tokenData?.userPendingRewards}
-                    totalClaimed={tokenData?.userTotalClaimed}
-                    rewardTokenSymbol="PLS"
-                    rewardTokenDecimals={18}
-                    onClaimSuccess={() => refetch()}
-                  />
+                  <ErrorBoundary fallbackLabel="Rewards">
+                    <RewardsClaimPanel
+                      tokenAddress={tokenAddress}
+                      tokenSymbol={tokenData?.symbol}
+                      pendingRewards={tokenData?.userPendingRewards}
+                      totalClaimed={tokenData?.userTotalClaimed}
+                      rewardTokenSymbol="PLS"
+                      rewardTokenDecimals={18}
+                      onClaimSuccess={() => refetch()}
+                    />
+                  </ErrorBoundary>
                 )}
 
                 {/* Holders Panel */}
-                <HoldersPanel
-                  tokenAddress={tokenAddress}
-                  tokenSymbol={tokenData?.symbol}
-                  totalSupply={tokenData?.totalSupply}
-                  creator={tokenData?.creator}
-                  isTaxToken={isTaxToken}
-                  rewardTokenSymbol="PLS"
-                  rewardTokenDecimals={18}
-                />
+                <ErrorBoundary fallbackLabel="Holders">
+                  <HoldersPanel
+                    tokenAddress={tokenAddress}
+                    tokenSymbol={tokenData?.symbol}
+                    totalSupply={tokenData?.totalSupply}
+                    creator={tokenData?.creator}
+                    isTaxToken={isTaxToken}
+                    rewardTokenSymbol="PLS"
+                    rewardTokenDecimals={18}
+                  />
+                </ErrorBoundary>
 
-                {/* About This Token */}
+                {/* About */}
                 <div className="glass-card rounded-xl p-5 border border-gray-800">
                   <h3 className="font-orbitron font-bold text-white text-sm mb-3">About</h3>
                   <div className="space-y-2 text-xs font-rajdhani">
@@ -450,11 +485,11 @@ export default function TokenPage() {
                     </p>
                     {isTaxToken ? (
                       <p className="text-gray-400">
-                        <span className="text-purple-400">FORGE token</span> — automated tax collection, holder rewards, and multi-mechanism distribution.
+                        <span className="text-purple-400">FORGE token</span> — automated tax collection, holder rewards, multi-mechanism distribution.
                       </p>
                     ) : (
                       <p className="text-gray-400">
-                        <span className="text-gray-300">SIMPLE token</span> — standard ERC20 with no tax features.
+                        <span className="text-gray-300">SIMPLE token</span> — standard ERC20.
                       </p>
                     )}
                   </div>

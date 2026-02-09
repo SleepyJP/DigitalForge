@@ -117,56 +117,84 @@ export function HoldersPanel({
       const transferEvent = parseAbiItem('event Transfer(address indexed from, address indexed to, uint256 value)');
 
       const currentBlock = await publicClient.getBlockNumber();
-      const fromBlock = currentBlock - BigInt(500000);
+      // Safe range: 25K blocks (~2 hours on PulseChain) to avoid OOM
+      const BLOCK_RANGE = 25000n;
+      const fromBlock = currentBlock - BLOCK_RANGE;
 
-      const logs = await publicClient.getLogs({
-        address: tokenAddress,
-        event: transferEvent,
-        fromBlock: fromBlock > BigInt(0) ? fromBlock : BigInt(0),
-        toBlock: currentBlock,
-      });
+      let logs;
+      try {
+        logs = await publicClient.getLogs({
+          address: tokenAddress,
+          event: transferEvent,
+          fromBlock: fromBlock > 0n ? fromBlock : 0n,
+          toBlock: currentBlock,
+        });
+      } catch {
+        // If even 25K blocks is too much, try 5K
+        try {
+          logs = await publicClient.getLogs({
+            address: tokenAddress,
+            event: transferEvent,
+            fromBlock: currentBlock - 5000n,
+            toBlock: currentBlock,
+          });
+        } catch {
+          console.error('[HoldersPanel] getLogs failed even with reduced range');
+          if (isMountedRef.current) setIsLoading(false);
+          return;
+        }
+      }
 
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current || !logs) return;
 
       // Build holder balances from transfer events
       const balances = new Map<string, bigint>();
       const ZERO = '0x0000000000000000000000000000000000000000';
 
       for (const log of logs) {
-        const args = log.args as { from: `0x${string}`; to: `0x${string}`; value: bigint };
-        if (!args.from || !args.to || !args.value) continue;
+        const args = log.args;
+        if (!args || !('from' in args) || !('to' in args) || !('value' in args)) continue;
+        const from = args.from as string;
+        const to = args.to as string;
+        const value = args.value as bigint;
+        if (!from || !to || typeof value !== 'bigint') continue;
 
-        const fromAddr = args.from.toLowerCase();
-        const toAddr = args.to.toLowerCase();
+        const fromAddr = from.toLowerCase();
+        const toAddr = to.toLowerCase();
 
         if (fromAddr !== ZERO.toLowerCase()) {
-          const currentFrom = balances.get(fromAddr) || BigInt(0);
-          balances.set(fromAddr, currentFrom - args.value);
+          const currentFrom = balances.get(fromAddr) || 0n;
+          const newBal = currentFrom - value;
+          balances.set(fromAddr, newBal);
         }
 
         if (toAddr !== ZERO.toLowerCase() && toAddr !== '0x000000000000000000000000000000000000dead') {
-          const currentTo = balances.get(toAddr) || BigInt(0);
-          balances.set(toAddr, currentTo + args.value);
+          const currentTo = balances.get(toAddr) || 0n;
+          balances.set(toAddr, currentTo + value);
         }
       }
 
       if (!isMountedRef.current) return;
 
-      const supply = totalSupply || BigInt(1);
+      const supply = totalSupply || 1n;
       const holderArray: HolderData[] = [];
 
       for (const [addr, bal] of balances) {
-        if (bal > BigInt(0)) {
+        if (bal > 0n) {
           holderArray.push({
             address: addr as `0x${string}`,
             balance: bal,
-            percentage: Number((bal * BigInt(10000)) / supply) / 100,
+            percentage: Number((bal * 10000n) / supply) / 100,
             isCreator: creator?.toLowerCase() === addr.toLowerCase(),
           });
         }
       }
 
-      holderArray.sort((a, b) => Number(b.balance - a.balance));
+      holderArray.sort((a, b) => {
+        if (b.balance > a.balance) return 1;
+        if (b.balance < a.balance) return -1;
+        return 0;
+      });
       setHolders(holderArray.slice(0, 50));
     } catch (err) {
       console.error('[HoldersPanel] Error:', err);
@@ -184,12 +212,13 @@ export function HoldersPanel({
     return () => { isMountedRef.current = false; };
   }, []);
 
-  // Refetch rewards when holders change
+  // Refetch rewards when holders change — refetchRewards excluded from deps to prevent infinite loop
   useEffect(() => {
     if (isTaxToken && holders.length > 0) {
       refetchRewards();
     }
-  }, [holders, isTaxToken, refetchRewards]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [holders, isTaxToken]);
 
   const formatBalance = (balance: bigint | undefined): string => {
     if (!balance) return '0';

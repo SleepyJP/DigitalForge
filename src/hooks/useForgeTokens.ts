@@ -185,7 +185,7 @@ export function useForgeTokens(offset: number = 0, limit: number = 50) {
       { address: addr, abi: TAX_TOKEN_ABI, functionName: 'buyTax' as const },
       { address: addr, abi: TAX_TOKEN_ABI, functionName: 'sellTax' as const },
       { address: addr, abi: TAX_TOKEN_ABI, functionName: 'tradingEnabled' as const },
-      { address: addr, abi: TAX_TOKEN_ABI, functionName: 'owner' as const },
+      { address: addr, abi: TAX_TOKEN_ABI, functionName: 'creator' as const },
     ]);
   }, [tokenAddresses]);
 

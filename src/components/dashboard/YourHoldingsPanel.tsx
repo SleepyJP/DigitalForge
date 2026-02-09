@@ -135,7 +135,7 @@ const TOKEN_ABI = [
   },
   {
     inputs: [],
-    name: 'owner',
+    name: 'creator',
     outputs: [{ type: 'address' }],
     stateMutability: 'view',
     type: 'function',
@@ -208,7 +208,7 @@ export function YourHoldingsPanel({
       { address: tokenAddress, abi: TOKEN_ABI, functionName: 'pendingTreasury' as const },
       { address: tokenAddress, abi: TOKEN_ABI, functionName: 'pendingBurn' as const },
       { address: tokenAddress, abi: TOKEN_ABI, functionName: 'pendingYield' as const },
-      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'owner' as const },
+      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'creator' as const },
       { address: tokenAddress, abi: TOKEN_ABI, functionName: 'buyTax' as const },
       { address: tokenAddress, abi: TOKEN_ABI, functionName: 'sellTax' as const },
     ];

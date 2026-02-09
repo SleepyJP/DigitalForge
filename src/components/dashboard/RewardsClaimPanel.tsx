@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { formatUnits, type Address } from 'viem';
 import { Gift, Wallet, TrendingUp, Clock, CheckCircle, AlertCircle } from 'lucide-react';
@@ -48,6 +48,7 @@ export function RewardsClaimPanel({
   const handleClaim = async () => {
     if (!tokenAddress || !address) return;
     setClaimError(null);
+    hasCalledSuccess.current = false; // Reset for new claim
     reset();
 
     try {
@@ -62,10 +63,14 @@ export function RewardsClaimPanel({
     }
   };
 
-  // Call success callback when transaction confirms
-  if (isSuccess && onClaimSuccess) {
-    onClaimSuccess();
-  }
+  // Call success callback when transaction confirms — MUST be in useEffect, NOT during render
+  const hasCalledSuccess = useRef(false);
+  useEffect(() => {
+    if (isSuccess && onClaimSuccess && !hasCalledSuccess.current) {
+      hasCalledSuccess.current = true;
+      onClaimSuccess();
+    }
+  }, [isSuccess, onClaimSuccess]);
 
   const formatReward = (amount: bigint | undefined, decimals: number = 18): string => {
     if (!amount || amount === 0n) return '0';

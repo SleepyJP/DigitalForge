@@ -153,7 +153,9 @@ export function SwapWidget({
     query: { enabled: parsedInput > 0n },
   });
 
-  const estimatedOutput = amountsOut ? (amountsOut as bigint[])[1] : 0n;
+  const estimatedOutput = amountsOut && Array.isArray(amountsOut) && amountsOut.length > 1
+    ? (amountsOut as bigint[])[1]
+    : 0n;
   const minOutput = estimatedOutput > 0n
     ? (estimatedOutput * BigInt(10000 - slippage * 100)) / 10000n
     : 0n;
@@ -190,7 +192,7 @@ export function SwapWidget({
     }
   }, [swapSuccess, onSwapSuccess]);
 
-  const needsApproval = !isBuying && parsedInput > 0n && allowance !== undefined && (allowance as bigint) < parsedInput;
+  const needsApproval = !isBuying && parsedInput > 0n && typeof allowance === 'bigint' && allowance < parsedInput;
 
   const handleApprove = useCallback(() => {
     writeApprove({

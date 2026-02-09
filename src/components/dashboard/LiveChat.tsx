@@ -129,15 +129,19 @@ export function LiveChat({ tokenAddress }: LiveChatProps) {
       : (SUPERCHAT_TIERS[selectedTier] ?? 0).toString();
     if (!amount || Number(amount) <= 0) return;
 
-    writeContract({
-      address: SUPERCHAT_ADDRESS,
-      abi: SUPERCHAT_ABI,
-      functionName: 'sendSuperChat',
-      args: [tokenAddress, message, false],
-      value: parseEther(amount),
-    });
-    setMessage('');
-    setIsSuperChatMode(false);
+    try {
+      writeContract({
+        address: SUPERCHAT_ADDRESS,
+        abi: SUPERCHAT_ABI,
+        functionName: 'sendSuperChat',
+        args: [tokenAddress, message, false],
+        value: parseEther(amount),
+      });
+      setMessage('');
+      setIsSuperChatMode(false);
+    } catch (err) {
+      console.error('[LiveChat] sendSuperChat error:', err);
+    }
   };
 
   const handleSend = () => {
@@ -145,10 +149,11 @@ export function LiveChat({ tokenAddress }: LiveChatProps) {
     else sendFreeMessage();
   };
 
-  const onePercentThreshold = totalSupply ? (totalSupply as bigint) / 100n : 0n;
-  const hasEnoughTokens = tokenBalance && totalSupply && (tokenBalance as bigint) >= onePercentThreshold;
-  const holdingPercent = tokenBalance && totalSupply
-    ? Number((tokenBalance as bigint) * 10000n / (totalSupply as bigint)) / 100
+  const supply = totalSupply && (totalSupply as bigint) > 0n ? (totalSupply as bigint) : 0n;
+  const onePercentThreshold = supply > 0n ? supply / 100n : 0n;
+  const hasEnoughTokens = tokenBalance && supply > 0n && (tokenBalance as bigint) >= onePercentThreshold;
+  const holdingPercent = tokenBalance && supply > 0n
+    ? Number((tokenBalance as bigint) * 10000n / supply) / 100
     : 0;
   const messages = allMessages();
 
