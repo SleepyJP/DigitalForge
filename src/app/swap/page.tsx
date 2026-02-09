@@ -247,7 +247,7 @@ export default function SwapPage() {
   const isLoading = approvePending || approveConfirming || swapPending || swapConfirming;
 
   return (
-    <div className="min-h-screen bg-void-black relative overflow-hidden">
+    <div className="min-h-screen bg-void-black relative overflow-x-hidden">
       <BackgroundEffects />
       <Header />
 

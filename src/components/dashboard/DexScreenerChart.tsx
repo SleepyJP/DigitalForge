@@ -54,8 +54,8 @@ export function DexScreenerChart({
         </a>
       </div>
 
-      {/* Chart Embed */}
-      <div style={{ height }} className="bg-black">
+      {/* Chart Embed — wrapper prevents iframe from stealing page scroll focus */}
+      <div style={{ height }} className="bg-black relative">
         <iframe
           src={dexScreenerUrl}
           width="100%"
@@ -65,6 +65,11 @@ export function DexScreenerChart({
           title="DEX Screener Chart"
           className="bg-black"
           loading="lazy"
+          tabIndex={-1}
+          onLoad={() => {
+            // Prevent iframe from scrolling the parent page on load
+            window.scrollTo(0, 0);
+          }}
         />
       </div>
     </div>

@@ -76,7 +76,7 @@ export default function TokensPage() {
   }, [tokens, filter, searchQuery, userTokenAddresses]);
 
   return (
-    <div className="min-h-screen bg-void-black relative overflow-hidden">
+    <div className="min-h-screen bg-void-black relative overflow-x-hidden">
       <BackgroundEffects />
       <Header />
 

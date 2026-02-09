@@ -6,7 +6,7 @@ import { TREASURY_ADDRESS } from '@/lib/contracts';
 
 export default function DocsPage() {
   return (
-    <div className="min-h-screen bg-void-black relative overflow-hidden">
+    <div className="min-h-screen bg-void-black relative overflow-x-hidden">
       <BackgroundEffects />
       <Header />
 

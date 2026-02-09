@@ -239,7 +239,7 @@ export default function CreateFarmPage() {
   const creationFeeDisplay = isWhitelisted ? 'FREE (Whitelisted)' : '500,000 PLS';
 
   return (
-    <div className="min-h-screen bg-void-black relative overflow-hidden">
+    <div className="min-h-screen bg-void-black relative overflow-x-hidden">
       <BackgroundEffects />
       <Header />
 

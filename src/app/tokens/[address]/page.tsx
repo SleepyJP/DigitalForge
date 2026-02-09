@@ -79,6 +79,11 @@ export default function TokenPage() {
     });
   }, [tokenAddress, writeEnableTrading]);
 
+  // Force scroll to top on mount — DexScreener iframe steals focus and scrolls page down
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   useEffect(() => {
     const stored = getTokenMetadata(tokenAddress);
     if (stored) {
