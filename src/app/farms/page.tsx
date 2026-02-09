@@ -214,7 +214,7 @@ export default function FarmsPage() {
     <>
       <BackgroundEffects />
       <Header />
-      <main className="min-h-screen pt-24 pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto relative z-10">
+      <main className="min-h-screen pt-4 pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto relative z-10">
         {/* Hero */}
         <div className="text-center mb-10">
           <h1 className="font-orbitron text-4xl sm:text-5xl font-bold mb-3">

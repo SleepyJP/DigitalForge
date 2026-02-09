@@ -10,7 +10,7 @@ export default function DocsPage() {
       <BackgroundEffects />
       <Header />
 
-      <main className="relative z-10 pt-24 pb-20 px-4">
+      <main className="relative z-10 pt-4 pb-20 px-4">
         <div className="max-w-4xl mx-auto">
           {/* Page Title */}
           <div className="text-center mb-12">

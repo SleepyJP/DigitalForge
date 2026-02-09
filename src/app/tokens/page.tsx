@@ -80,7 +80,7 @@ export default function TokensPage() {
       <BackgroundEffects />
       <Header />
 
-      <main className="relative z-10 pt-24 pb-20 px-4">
+      <main className="relative z-10 pt-4 pb-20 px-4">
         <div className="max-w-7xl mx-auto">
           {/* Page Header */}
           <div className="text-center mb-12">

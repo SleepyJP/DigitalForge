@@ -243,7 +243,7 @@ export default function CreateFarmPage() {
       <BackgroundEffects />
       <Header />
 
-      <main className="relative z-10 pt-24 pb-20 px-4">
+      <main className="relative z-10 pt-4 pb-20 px-4">
         <div className="max-w-2xl mx-auto">
           {/* Back Link */}
           <Link

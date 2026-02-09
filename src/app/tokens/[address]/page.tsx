@@ -121,7 +121,7 @@ export default function TokenPage() {
       <div className="min-h-screen bg-void-black relative overflow-x-hidden">
         <BackgroundEffects />
         <Header />
-        <main className="relative z-10 pt-24 pb-20 px-4">
+        <main className="relative z-10 py-4 px-4">
           <div className="max-w-2xl mx-auto text-center mt-20">
             <h1 className="font-orbitron font-bold text-4xl text-white mb-4">Token Not Found</h1>
             <p className="text-gray-400 font-rajdhani text-lg mb-8">
@@ -145,7 +145,7 @@ export default function TokenPage() {
       <BackgroundEffects />
       <Header />
 
-      <main className="relative z-10 pt-24 pb-20 px-3 lg:px-6">
+      <main className="relative z-10 py-4 px-3 lg:px-6">
         {/* FULL WIDTH - no max-width constraint */}
         <div className="w-full">
           {/* Top Bar: Back + Actions */}

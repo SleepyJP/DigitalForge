@@ -14,7 +14,7 @@ export default function Home() {
       <Header />
 
       {/* Hero Section */}
-      <section className="min-h-screen flex items-center justify-center pt-24">
+      <section className="min-h-screen flex items-center justify-center pt-4">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center text-center">
 
           {/* Title */}

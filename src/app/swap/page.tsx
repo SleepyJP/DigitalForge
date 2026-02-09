@@ -251,7 +251,7 @@ export default function SwapPage() {
       <BackgroundEffects />
       <Header />
 
-      <main className="relative z-10 pt-24 pb-20 px-4">
+      <main className="relative z-10 pt-4 pb-20 px-4">
         <div className="max-w-lg mx-auto">
           {/* Title */}
           <div className="text-center mb-8">
