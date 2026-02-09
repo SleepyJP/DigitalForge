@@ -38,11 +38,13 @@ export function TransactionFeed({
   const [isLoading, setIsLoading] = useState(false);
   const [filter, setFilter] = useState<'ALL' | 'BUY' | 'SELL'>('ALL');
   const isMountedRef = useRef(true);
+  const fetchGenRef = useRef(0);
   const publicClient = usePublicClient();
 
   const fetchTransactions = useCallback(async () => {
     if (!tokenAddress || !publicClient || !isMountedRef.current) return;
 
+    const gen = ++fetchGenRef.current;
     setIsLoading(true);
     try {
       const transferEvent = parseAbiItem('event Transfer(address indexed from, address indexed to, uint256 value)');
@@ -95,7 +97,7 @@ export function TransactionFeed({
         })
       );
 
-      if (!isMountedRef.current) return;
+      if (!isMountedRef.current || gen !== fetchGenRef.current) return;
 
       if (!logs) { if (isMountedRef.current) setIsLoading(false); return; }
 
@@ -137,22 +139,22 @@ export function TransactionFeed({
         };
       }).filter(Boolean) as Transaction[];
 
-      setTransactions(txs);
+      if (gen === fetchGenRef.current) setTransactions(txs);
     } catch (err) {
       console.error('[TransactionFeed] Error:', err);
     } finally {
-      if (isMountedRef.current) setIsLoading(false);
+      if (isMountedRef.current && gen === fetchGenRef.current) setIsLoading(false);
     }
   }, [tokenAddress, publicClient]);
-
-  useEffect(() => {
-    if (tokenAddress) fetchTransactions();
-  }, [tokenAddress, fetchTransactions]);
 
   useEffect(() => {
     isMountedRef.current = true;
     return () => { isMountedRef.current = false; };
   }, []);
+
+  useEffect(() => {
+    if (tokenAddress) fetchTransactions();
+  }, [tokenAddress, fetchTransactions]);
 
   const formatAmount = (amount: bigint): string => {
     const num = Number(formatUnits(amount, tokenDecimals));

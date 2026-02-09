@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useAccount, useReadContract, useWriteContract } from 'wagmi';
 import { parseEther } from 'viem';
 import {
@@ -92,16 +92,16 @@ export function LiveChat({ tokenAddress }: LiveChatProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [localMessages, superChatMessages]);
 
-  const allMessages = useCallback(() => {
+  const allMessages = useMemo(() => {
     const supChats: ChatMessage[] = ((superChatMessages as SuperChatMessage[] | undefined) || [])
       .filter((m) => !m.isMessageBoard)
-      .map((m, i) => ({
-        id: `sc-${i}`,
+      .map((m) => ({
+        id: `sc-${Number(m.timestamp)}-${m.sender.slice(2, 8)}`,
         sender: m.sender,
-        message: m.message,
-        timestamp: Number(m.timestamp),
+        message: m.message.length > 2000 ? m.message.slice(0, 2000) + '...' : m.message,
+        timestamp: Number(m.timestamp) || 0,
         isSuperChat: true,
-        tier: Number(m.tier),
+        tier: Number(m.tier) || 0,
         amount: m.amount,
       }));
     return [...localMessages, ...supChats].sort((a, b) => a.timestamp - b.timestamp);
@@ -130,15 +130,19 @@ export function LiveChat({ tokenAddress }: LiveChatProps) {
     if (!amount || Number(amount) <= 0) return;
 
     try {
+      const parsedValue = parseEther(amount);
       writeContract({
         address: SUPERCHAT_ADDRESS,
         abi: SUPERCHAT_ABI,
         functionName: 'sendSuperChat',
         args: [tokenAddress, message, false],
-        value: parseEther(amount),
+        value: parsedValue,
+      }, {
+        onSuccess: () => {
+          setMessage('');
+          setIsSuperChatMode(false);
+        },
       });
-      setMessage('');
-      setIsSuperChatMode(false);
     } catch (err) {
       console.error('[LiveChat] sendSuperChat error:', err);
     }
@@ -155,7 +159,7 @@ export function LiveChat({ tokenAddress }: LiveChatProps) {
   const holdingPercent = tokenBalance && supply > 0n
     ? Number((tokenBalance as bigint) * 10000n / supply) / 100
     : 0;
-  const messages = allMessages();
+  const messages = allMessages;
 
   const currentCost = useCustom ? customAmount : (SUPERCHAT_TIERS[selectedTier] ?? 0).toLocaleString();
 
@@ -206,7 +210,7 @@ export function LiveChat({ tokenAddress }: LiveChatProps) {
                     {formatAddress(msg.sender)}
                   </span>
                 </div>
-                <span className="text-[10px] font-rajdhani text-gray-600">{formatTimeAgo(BigInt(msg.timestamp))}</span>
+                <span className="text-[10px] font-rajdhani text-gray-600">{formatTimeAgo(msg.timestamp)}</span>
               </div>
               <p className={`text-sm font-rajdhani ${msg.isSuperChat ? 'text-white' : 'text-gray-300'}`}>
                 {msg.message}

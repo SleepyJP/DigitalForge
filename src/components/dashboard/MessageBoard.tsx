@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useAccount, useReadContract, useWriteContract } from 'wagmi';
 import { parseEther } from 'viem';
 import {
@@ -69,18 +69,18 @@ export function MessageBoard({ tokenAddress }: MessageBoardProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [localPosts, paidMessages]);
 
-  const allPosts = useCallback(() => {
+  const allPosts = useMemo(() => {
     const paid: BoardMessage[] = ((paidMessages as SuperChatMessage[] | undefined) || [])
       .filter((m) => m.isMessageBoard)
-      .map((m, i) => ({
-        id: `paid-${i}`,
+      .map((m) => ({
+        id: `paid-${Number(m.timestamp)}-${m.sender.slice(2, 8)}`,
         sender: m.sender,
-        message: m.message,
-        timestamp: Number(m.timestamp),
+        message: m.message.length > 2000 ? m.message.slice(0, 2000) + '...' : m.message,
+        timestamp: Number(m.timestamp) || 0,
         isPaid: true,
-        tier: Number(m.tier),
+        tier: Number(m.tier) || 0,
         amount: m.amount,
-        pinned: Number(m.tier) >= 5, // 100K+ PLS gets pinned
+        pinned: (Number(m.tier) || 0) >= 5,
       }));
 
     const combined = [...localPosts, ...paid];
@@ -111,19 +111,19 @@ export function MessageBoard({ tokenAddress }: MessageBoardProps) {
       : (SUPERCHAT_TIERS[selectedTier] ?? 0).toString();
     if (!amount || Number(amount) <= 0) return;
 
-    try {
-      writeContract({
-        address: SUPERCHAT_ADDRESS,
-        abi: SUPERCHAT_ABI,
-        functionName: 'sendSuperChat',
-        args: [tokenAddress, message, true],
-        value: parseEther(amount),
-      });
-      setMessage('');
-      setIsPaidMode(false);
-    } catch (err) {
-      console.error('[MessageBoard] sendSuperChat error:', err);
-    }
+    const parsedValue = parseEther(amount);
+    writeContract({
+      address: SUPERCHAT_ADDRESS,
+      abi: SUPERCHAT_ABI,
+      functionName: 'sendSuperChat',
+      args: [tokenAddress, message, true],
+      value: parsedValue,
+    }, {
+      onSuccess: () => {
+        setMessage('');
+        setIsPaidMode(false);
+      },
+    });
   };
 
   const handlePost = () => {
@@ -137,7 +137,7 @@ export function MessageBoard({ tokenAddress }: MessageBoardProps) {
   const holdingPercent = tokenBalance && supply > 0n
     ? Number((tokenBalance as bigint) * 10000n / supply) / 100
     : 0;
-  const posts = allPosts();
+  const posts = allPosts;
 
   const currentCost = useCustom ? customAmount : (SUPERCHAT_TIERS[selectedTier] ?? 0).toLocaleString();
 
@@ -195,7 +195,7 @@ export function MessageBoard({ tokenAddress }: MessageBoardProps) {
                   </span>
                 </div>
                 <div className="text-right">
-                  <span className="text-xs font-rajdhani text-gray-400 block">{formatTimeAgo(BigInt(post.timestamp))}</span>
+                  <span className="text-xs font-rajdhani text-gray-400 block">{formatTimeAgo(post.timestamp)}</span>
                   {post.isPaid && post.amount && (
                     <span className="text-xs font-rajdhani font-semibold" style={{ color: getTierColor(post.tier || 3) }}>
                       {formatPLS(post.amount)} PLS

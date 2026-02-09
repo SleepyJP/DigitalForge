@@ -29,18 +29,18 @@ interface HoldersPanelProps {
   rewardTokenDecimals?: number;
 }
 
-// ABI for reward functions
+// ABI for reward functions — matches canonical FORGED_TOKEN_ABI
 const REWARDS_ABI = [
   {
-    inputs: [{ name: 'holder', type: 'address' }],
-    name: 'getPendingRewards',
+    inputs: [{ name: 'account', type: 'address' }],
+    name: 'pendingReflections',
     outputs: [{ type: 'uint256' }],
     stateMutability: 'view',
     type: 'function',
   },
   {
-    inputs: [{ name: 'holder', type: 'address' }],
-    name: 'getTotalClaimed',
+    inputs: [{ name: 'account', type: 'address' }],
+    name: 'pendingYield',
     outputs: [{ type: 'uint256' }],
     stateMutability: 'view',
     type: 'function',
@@ -73,13 +73,13 @@ export function HoldersPanel({
       {
         address: tokenAddress,
         abi: REWARDS_ABI,
-        functionName: 'getPendingRewards' as const,
+        functionName: 'pendingReflections' as const,
         args: [holder.address],
       },
       {
         address: tokenAddress,
         abi: REWARDS_ABI,
-        functionName: 'getTotalClaimed' as const,
+        functionName: 'pendingYield' as const,
         args: [holder.address],
       },
     ]);
@@ -165,7 +165,7 @@ export function HoldersPanel({
         if (fromAddr !== ZERO.toLowerCase()) {
           const currentFrom = balances.get(fromAddr) || 0n;
           const newBal = currentFrom - value;
-          balances.set(fromAddr, newBal);
+          balances.set(fromAddr, newBal > 0n ? newBal : 0n);
         }
 
         if (toAddr !== ZERO.toLowerCase() && toAddr !== '0x000000000000000000000000000000000000dead') {
@@ -176,7 +176,7 @@ export function HoldersPanel({
 
       if (!isMountedRef.current) return;
 
-      const supply = totalSupply || 1n;
+      const supply = totalSupply && totalSupply > 0n ? totalSupply : 1n;
       const holderArray: HolderData[] = [];
 
       for (const [addr, bal] of balances) {
@@ -204,13 +204,13 @@ export function HoldersPanel({
   }, [tokenAddress, publicClient, totalSupply, creator]);
 
   useEffect(() => {
-    if (tokenAddress) fetchHolders();
-  }, [tokenAddress, fetchHolders]);
-
-  useEffect(() => {
     isMountedRef.current = true;
     return () => { isMountedRef.current = false; };
   }, []);
+
+  useEffect(() => {
+    if (tokenAddress) fetchHolders();
+  }, [tokenAddress, fetchHolders]);
 
   // Refetch rewards when holders change — refetchRewards excluded from deps to prevent infinite loop
   useEffect(() => {

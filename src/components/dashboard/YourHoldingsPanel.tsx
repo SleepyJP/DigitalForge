@@ -364,6 +364,17 @@ export function YourHoldingsPanel({
     );
   }
 
+  if (!tokenAddress) {
+    return (
+      <div className="glass-card rounded-xl border border-cyan-500/20 p-6">
+        <div className="text-center py-4">
+          <Coins className="w-10 h-10 text-gray-600 mx-auto mb-3" />
+          <p className="text-gray-400 font-rajdhani">Select a token to view holdings</p>
+        </div>
+      </div>
+    );
+  }
+
   if (isLoading || !data) {
     return (
       <div className="glass-card rounded-xl border border-cyan-500/20 p-6">

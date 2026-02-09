@@ -148,7 +148,10 @@ export function getTierName(tier: number): string {
 
 export function formatPLS(value: bigint | undefined | null, decimals = 2): string {
   if (!value) return '0';
-  const formatted = Number(value) / 1e18;
+  // Use string-based division to avoid Number(bigint) precision loss for values > 2^53
+  const whole = value / 1_000_000_000_000_000_000n;
+  const remainder = value % 1_000_000_000_000_000_000n;
+  const formatted = Number(whole) + Number(remainder) / 1e18;
   if (formatted >= 1_000_000) return `${(formatted / 1_000_000).toFixed(decimals)}M`;
   if (formatted >= 1_000) return `${(formatted / 1_000).toFixed(decimals)}K`;
   return formatted.toFixed(decimals);

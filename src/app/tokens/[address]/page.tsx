@@ -48,8 +48,9 @@ export default function TokenPage() {
   const [metadata, setMetadata] = useState<StoredTokenMetadata | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
 
-  const tokenAddress = params.address as Address;
-  const hidden = isHiddenToken(tokenAddress);
+  const rawAddress = typeof params.address === 'string' ? params.address : '';
+  const tokenAddress = (rawAddress.startsWith('0x') ? rawAddress : `0x${rawAddress}`) as Address;
+  const hidden = !rawAddress || isHiddenToken(tokenAddress);
   const { tokenData, isLoading, refetch } = useTaxTokenData(hidden ? undefined : tokenAddress, userAddress);
 
   const {
@@ -117,7 +118,7 @@ export default function TokenPage() {
 
   if (hidden) {
     return (
-      <div className="min-h-screen bg-void-black relative overflow-hidden">
+      <div className="min-h-screen bg-void-black relative overflow-x-hidden">
         <BackgroundEffects />
         <Header />
         <main className="relative z-10 pt-24 pb-20 px-4">
@@ -140,15 +141,15 @@ export default function TokenPage() {
   }
 
   return (
-    <div className="min-h-screen bg-void-black relative overflow-hidden">
+    <div className="min-h-screen bg-void-black relative overflow-x-hidden">
       <BackgroundEffects />
       <Header />
 
-      <main className="relative z-10 pt-20 pb-20 px-3 lg:px-6">
+      <main className="relative z-10 pt-24 pb-20 px-3 lg:px-6">
         {/* FULL WIDTH - no max-width constraint */}
         <div className="w-full">
-          {/* Top Bar: Back + Address */}
-          <div className="flex items-center justify-between mb-3">
+          {/* Top Bar: Back + Actions */}
+          <div className="flex items-center justify-between mb-2">
             <Link
               href="/tokens"
               className="flex items-center gap-2 text-gray-400 hover:text-cyan-400 transition-colors font-rajdhani text-sm"
@@ -157,25 +158,6 @@ export default function TokenPage() {
               Gallery
             </Link>
             <div className="flex items-center gap-2">
-              {/* FULL contract address — always copyable */}
-              <button
-                onClick={handleCopy}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-900/70 border border-cyan-500/30 rounded-lg hover:border-cyan-500/60 transition-all group cursor-pointer"
-                title="Click to copy contract address"
-              >
-                <span className="text-cyan-400 font-mono text-sm select-all hidden md:inline">
-                  {tokenAddress}
-                </span>
-                <span className="text-cyan-400 font-mono text-sm select-all md:hidden">
-                  {tokenAddress.slice(0, 10)}...{tokenAddress.slice(-8)}
-                </span>
-                {copied ? (
-                  <CheckCircle size={16} className="text-green-400 flex-shrink-0" />
-                ) : (
-                  <Copy size={16} className="text-cyan-400 group-hover:text-cyan-300 flex-shrink-0" />
-                )}
-                {copied && <span className="text-green-400 text-xs font-rajdhani">Copied!</span>}
-              </button>
               <a
                 href={`https://scan.pulsechain.com/token/${tokenAddress}`}
                 target="_blank"
@@ -204,6 +186,24 @@ export default function TokenPage() {
             </div>
           </div>
 
+          {/* Contract Address — Full width, always visible and copyable */}
+          <button
+            onClick={handleCopy}
+            className="w-full flex items-center justify-center gap-3 px-4 py-2.5 mb-4 bg-gray-900/80 border border-cyan-500/30 rounded-lg hover:border-cyan-500/60 transition-all group cursor-pointer"
+            title="Click to copy contract address"
+          >
+            <span className="text-gray-500 text-xs font-rajdhani uppercase tracking-wider">CA:</span>
+            <span className="text-cyan-400 font-mono text-sm md:text-base select-all truncate">
+              {tokenAddress}
+            </span>
+            {copied ? (
+              <CheckCircle size={18} className="text-green-400 flex-shrink-0" />
+            ) : (
+              <Copy size={18} className="text-cyan-400 group-hover:text-cyan-300 flex-shrink-0" />
+            )}
+            {copied && <span className="text-green-400 text-sm font-rajdhani font-semibold">Copied!</span>}
+          </button>
+
           {isLoading ? (
             <div className="space-y-6">
               <div className="glass-card rounded-xl p-6 animate-pulse">
@@ -215,7 +215,7 @@ export default function TokenPage() {
                   </div>
                 </div>
               </div>
-              <div className="h-[600px] bg-gray-900/50 rounded-xl animate-pulse" />
+              <div className="h-[400px] bg-gray-900/50 rounded-xl animate-pulse" />
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
@@ -333,10 +333,12 @@ export default function TokenPage() {
                   </div>
                 </div>
 
-                {/* DexScreener Chart — BIG */}
-                <ErrorBoundary fallbackLabel="Chart">
-                  <DexScreenerChart tokenAddress={tokenAddress} height={600} />
-                </ErrorBoundary>
+                {/* DexScreener Chart */}
+                <div className="relative z-0 isolate">
+                  <ErrorBoundary fallbackLabel="Chart">
+                    <DexScreenerChart tokenAddress={tokenAddress} height={400} />
+                  </ErrorBoundary>
+                </div>
 
                 {/* Transaction Feed — Buys/Sells */}
                 <ErrorBoundary fallbackLabel="Transactions">
@@ -454,8 +456,8 @@ export default function TokenPage() {
                     <RewardsClaimPanel
                       tokenAddress={tokenAddress}
                       tokenSymbol={tokenData?.symbol}
-                      pendingRewards={tokenData?.userPendingRewards}
-                      totalClaimed={tokenData?.userTotalClaimed}
+                      pendingRewards={tokenData?.userPendingReflections}
+                      totalClaimed={tokenData?.userPendingYield}
                       rewardTokenSymbol="PLS"
                       rewardTokenDecimals={18}
                       onClaimSuccess={() => refetch()}

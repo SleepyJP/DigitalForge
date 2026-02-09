@@ -22,8 +22,12 @@ type MetadataStore = Record<string, StoredTokenMetadata>;
 
 function getStore(): MetadataStore {
   if (typeof window === 'undefined') return {};
-  const stored = localStorage.getItem(STORAGE_KEY);
-  return stored ? JSON.parse(stored) : {};
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? JSON.parse(stored) : {};
+  } catch {
+    return {};
+  }
 }
 
 function saveStore(store: MetadataStore): void {

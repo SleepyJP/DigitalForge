@@ -156,8 +156,9 @@ export function SwapWidget({
   const estimatedOutput = amountsOut && Array.isArray(amountsOut) && amountsOut.length > 1
     ? (amountsOut as bigint[])[1]
     : 0n;
+  const clampedSlippage = Math.min(Math.max(slippage, 1), 49);
   const minOutput = estimatedOutput > 0n
-    ? (estimatedOutput * BigInt(10000 - slippage * 100)) / 10000n
+    ? (estimatedOutput * BigInt(10000 - clampedSlippage * 100)) / 10000n
     : 0n;
 
   // Approve tx
@@ -204,7 +205,7 @@ export function SwapWidget({
   }, [tokenAddress, writeApprove]);
 
   const handleSwap = useCallback(() => {
-    if (!userAddress || parsedInput === 0n) return;
+    if (!userAddress || parsedInput === 0n || estimatedOutput === 0n) return;
     resetSwap();
 
     const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200); // 20 min
@@ -225,7 +226,7 @@ export function SwapWidget({
         args: [parsedInput, minOutput, swapPath, userAddress, deadline],
       });
     }
-  }, [userAddress, parsedInput, minOutput, swapPath, isBuying, writeSwap, resetSwap]);
+  }, [userAddress, parsedInput, estimatedOutput, minOutput, swapPath, isBuying, writeSwap, resetSwap]);
 
   const formatBalance = (bal: bigint | undefined, dec: number = 18): string => {
     if (!bal) return '0';
@@ -311,7 +312,7 @@ export function SwapWidget({
             BUY
           </button>
           <button
-            onClick={() => setIsBuying(!isBuying)}
+            onClick={() => { setIsBuying(!isBuying); setInputAmount(''); resetSwap(); }}
             className="p-2 rounded-lg bg-gray-800/50 border border-gray-700 text-gray-400 hover:text-cyan-400 hover:border-cyan-500/50 transition-all"
           >
             <ArrowDownUp size={16} />
@@ -420,7 +421,7 @@ export function SwapWidget({
         {/* Swap Button */}
         <button
           onClick={handleSwap}
-          disabled={isProcessing || parsedInput === 0n || (needsApproval && !approveSuccess)}
+          disabled={isProcessing || parsedInput === 0n || estimatedOutput === 0n || (needsApproval && !approveSuccess)}
           className={`w-full py-3 rounded-xl font-rajdhani font-bold text-sm transition-all flex items-center justify-center gap-2 ${
             isBuying
               ? 'bg-gradient-to-r from-green-600 to-cyan-600 text-white hover:from-green-500 hover:to-cyan-500'
@@ -464,7 +465,7 @@ export function SwapWidget({
           <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
             <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
             <p className="text-red-400 text-xs font-rajdhani">
-              {swapError.message.slice(0, 120)}
+              {(swapError.message || 'Transaction failed').slice(0, 120)}
             </p>
           </div>
         )}

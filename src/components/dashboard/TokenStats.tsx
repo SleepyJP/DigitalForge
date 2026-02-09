@@ -32,7 +32,8 @@ interface TokenStatsProps {
     treasuryWallet?: Address;
     tokenType: string;
     createdAt: bigint;
-    totalRewardsDistributed?: bigint;
+    totalReflections?: bigint;
+    totalYieldDistributed?: bigint;
   } | null;
   holdersCount?: number;
   imageUrl?: string | null;
@@ -204,15 +205,28 @@ export function TokenStats({ tokenData, holdersCount, imageUrl }: TokenStatsProp
                 </p>
               </div>
 
-              {/* Total Rewards Distributed */}
-              {tokenData.totalRewardsDistributed !== undefined && (
-                <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4 col-span-2">
+              {/* Total Reflections */}
+              {tokenData.totalReflections !== undefined && tokenData.totalReflections > 0n && (
+                <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4">
                   <div className="flex items-center gap-2 text-purple-400 mb-2">
                     <Gift size={14} />
-                    <span className="text-xs font-rajdhani uppercase">Total Rewards Distributed</span>
+                    <span className="text-xs font-rajdhani uppercase">Reflections</span>
                   </div>
                   <p className="text-2xl font-mono font-bold text-purple-400">
-                    {formatRewards(tokenData.totalRewardsDistributed)} <span className="text-sm text-gray-400">PLS</span>
+                    {formatRewards(tokenData.totalReflections)} <span className="text-sm text-gray-400">PLS</span>
+                  </p>
+                </div>
+              )}
+
+              {/* Total Yield Distributed */}
+              {tokenData.totalYieldDistributed !== undefined && tokenData.totalYieldDistributed > 0n && (
+                <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-4">
+                  <div className="flex items-center gap-2 text-orange-400 mb-2">
+                    <Gift size={14} />
+                    <span className="text-xs font-rajdhani uppercase">Yield Distributed</span>
+                  </div>
+                  <p className="text-2xl font-mono font-bold text-orange-400">
+                    {formatRewards(tokenData.totalYieldDistributed)} <span className="text-sm text-gray-400">PLS</span>
                   </p>
                 </div>
               )}

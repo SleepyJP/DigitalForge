@@ -82,30 +82,30 @@ const TAX_TOKEN_ABI = [
   },
   {
     inputs: [],
-    name: 'totalRewardsDistributed',
-    outputs: [{ type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [{ name: 'holder', type: 'address' }],
-    name: 'getPendingRewards',
-    outputs: [{ type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [{ name: 'holder', type: 'address' }],
-    name: 'getTotalClaimed',
+    name: 'totalReflections',
     outputs: [{ type: 'uint256' }],
     stateMutability: 'view',
     type: 'function',
   },
   {
     inputs: [],
-    name: 'claimRewards',
-    outputs: [],
-    stateMutability: 'nonpayable',
+    name: 'totalYieldDistributed',
+    outputs: [{ type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: 'account', type: 'address' }],
+    name: 'pendingReflections',
+    outputs: [{ type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: 'account', type: 'address' }],
+    name: 'pendingYield',
+    outputs: [{ type: 'uint256' }],
+    stateMutability: 'view',
     type: 'function',
   },
 ] as const;
@@ -206,7 +206,7 @@ export function useForgeTokens(offset: number = 0, limit: number = 50) {
 
         const name = (metadataResults[baseIdx]?.result as string) || 'Unknown';
         const symbol = (metadataResults[baseIdx + 1]?.result as string) || '???';
-        const decimals = (metadataResults[baseIdx + 2]?.result as number) || 18;
+        const decimals = (metadataResults[baseIdx + 2]?.result as number) ?? 18;
         const totalSupply = (metadataResults[baseIdx + 3]?.result as bigint) || 0n;
 
         const buyTax = taxResults ? (taxResults[taxIdx]?.result as bigint) : undefined;
@@ -266,7 +266,8 @@ export function useTaxTokenData(tokenAddress?: Address, userAddress?: Address) {
       { address: tokenAddress, abi: TAX_TOKEN_ABI, functionName: 'tradingEnabled' as const },
       { address: tokenAddress, abi: TAX_TOKEN_ABI, functionName: 'creator' as const },
       { address: tokenAddress, abi: TAX_TOKEN_ABI, functionName: 'treasuryWallet' as const },
-      { address: tokenAddress, abi: TAX_TOKEN_ABI, functionName: 'totalRewardsDistributed' as const },
+      { address: tokenAddress, abi: TAX_TOKEN_ABI, functionName: 'totalReflections' as const },
+      { address: tokenAddress, abi: TAX_TOKEN_ABI, functionName: 'totalYieldDistributed' as const },
     ];
 
     // Add user-specific calls if address provided
@@ -276,13 +277,13 @@ export function useTaxTokenData(tokenAddress?: Address, userAddress?: Address) {
         {
           address: tokenAddress,
           abi: TAX_TOKEN_ABI,
-          functionName: 'getPendingRewards' as const,
+          functionName: 'pendingReflections' as const,
           args: [userAddress],
         },
         {
           address: tokenAddress,
           abi: TAX_TOKEN_ABI,
-          functionName: 'getTotalClaimed' as const,
+          functionName: 'pendingYield' as const,
           args: [userAddress],
         }
       );
@@ -307,16 +308,17 @@ export function useTaxTokenData(tokenAddress?: Address, userAddress?: Address) {
       createdAt: 0n, // V2 doesn't track creation time
       name: (results[0]?.result as string) || 'Unknown',
       symbol: (results[1]?.result as string) || '???',
-      decimals: (results[2]?.result as number) || 18,
+      decimals: (results[2]?.result as number) ?? 18,
       totalSupply: (results[3]?.result as bigint) || 0n,
       buyTax: (results[4]?.result as bigint) || 0n,
       sellTax: (results[5]?.result as bigint) || 0n,
       tradingEnabled: (results[6]?.result as boolean) ?? true,
       creator: (results[7]?.result as Address) || '0x0000000000000000000000000000000000000000',
       treasuryWallet: (results[8]?.result as Address) || '0x0000000000000000000000000000000000000000',
-      totalRewardsDistributed: (results[9]?.result as bigint) || 0n,
-      userPendingRewards: userAddress ? ((results[10]?.result as bigint) || 0n) : undefined,
-      userTotalClaimed: userAddress ? ((results[11]?.result as bigint) || 0n) : undefined,
+      totalReflections: (results[9]?.result as bigint) || 0n,
+      totalYieldDistributed: (results[10]?.result as bigint) || 0n,
+      userPendingReflections: userAddress ? ((results[11]?.result as bigint) || 0n) : undefined,
+      userPendingYield: userAddress ? ((results[12]?.result as bigint) || 0n) : undefined,
     };
   }, [results, isForged, tokenAddress, userAddress]);
 
