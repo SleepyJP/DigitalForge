@@ -8,7 +8,7 @@ import BackgroundEffects from '@/components/BackgroundEffects';
 import { useForgeTokens, formatTokenAmount, formatTaxRate } from '@/hooks/useForgeTokens';
 import { useCreatorTokens } from '@/hooks/useForge';
 import { getTokenMetadata } from '@/lib/tokenMetadataStore';
-import { ipfsToHttp, getFromLocalStorage } from '@/lib/ipfs';
+import { resolveTokenImage } from '@/lib/ipfs';
 import {
   Coins,
   Search,
@@ -275,19 +275,11 @@ function TokenCard({ token, isOwned }: TokenCardProps) {
   const hasTaxes = (token.buyTax && token.buyTax > 0n) || (token.sellTax && token.sellTax > 0n);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
 
-  // Load stored metadata for image
+  // Load token image — stored metadata first, Piteas fallback
   useEffect(() => {
     const metadata = getTokenMetadata(token.address);
-    if (metadata?.imageUri) {
-      if (metadata.imageUri.startsWith('local://')) {
-        const data = getFromLocalStorage(metadata.imageUri);
-        if (data) setImageUrl(data);
-      } else if (metadata.imageUri.startsWith('ipfs://')) {
-        setImageUrl(ipfsToHttp(metadata.imageUri));
-      } else {
-        setImageUrl(metadata.imageUri);
-      }
-    }
+    const resolved = resolveTokenImage(token.address, metadata?.imageUri);
+    if (resolved) setImageUrl(resolved.url);
   }, [token.address]);
 
   return (
@@ -298,7 +290,7 @@ function TokenCard({ token, isOwned }: TokenCardProps) {
           <div className="flex items-center gap-3">
             {imageUrl ? (
               <div className="w-12 h-12 rounded-xl overflow-hidden border border-gray-700">
-                <img src={imageUrl} alt={token.name} className="w-full h-full object-cover" />
+                <img src={imageUrl} alt={token.name} className="w-full h-full object-cover" onError={() => setImageUrl(null)} />
               </div>
             ) : (
               <div

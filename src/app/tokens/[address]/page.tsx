@@ -17,7 +17,7 @@ import { LiveChat } from '@/components/dashboard/LiveChat';
 import { MessageBoard } from '@/components/dashboard/MessageBoard';
 import { useTaxTokenData, isHiddenToken } from '@/hooks/useForgeTokens';
 import { getTokenMetadata, type StoredTokenMetadata } from '@/lib/tokenMetadataStore';
-import { ipfsToHttp, getFromLocalStorage } from '@/lib/ipfs';
+import { resolveTokenImage } from '@/lib/ipfs';
 import { FORGED_TOKEN_ABI } from '@/lib/contracts';
 import { type Address } from 'viem';
 import {
@@ -81,19 +81,9 @@ export default function TokenPage() {
 
   useEffect(() => {
     const stored = getTokenMetadata(tokenAddress);
-    if (stored) {
-      setMetadata(stored);
-      if (stored.imageUri) {
-        if (stored.imageUri.startsWith('local://')) {
-          const data = getFromLocalStorage(stored.imageUri);
-          if (data) setImageUrl(data);
-        } else if (stored.imageUri.startsWith('ipfs://')) {
-          setImageUrl(ipfsToHttp(stored.imageUri));
-        } else {
-          setImageUrl(stored.imageUri);
-        }
-      }
-    }
+    if (stored) setMetadata(stored);
+    const resolved = resolveTokenImage(tokenAddress, stored?.imageUri);
+    if (resolved) setImageUrl(resolved.url);
   }, [tokenAddress]);
 
   const handleCopy = async () => {
@@ -232,7 +222,7 @@ export default function TokenPage() {
                     {/* BIG Token Image */}
                     {imageUrl ? (
                       <div className="w-24 h-24 md:w-32 md:h-32 rounded-xl overflow-hidden border-2 border-cyan-500/30 flex-shrink-0 shadow-[0_0_20px_rgba(0,240,255,0.15)]">
-                        <img src={imageUrl} alt={tokenData?.name} className="w-full h-full object-cover" />
+                        <img src={imageUrl} alt={tokenData?.name} className="w-full h-full object-cover" onError={() => setImageUrl(null)} />
                       </div>
                     ) : (
                       <div className="w-24 h-24 md:w-32 md:h-32 rounded-xl bg-gradient-to-br from-cyan-500/20 to-pink-500/20 flex items-center justify-center flex-shrink-0 border-2 border-cyan-500/20">

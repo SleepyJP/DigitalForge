@@ -134,3 +134,32 @@ export function getFromLocalStorage(localUri: string): string | null {
   const hash = localUri.slice(8);
   return localStorage.getItem(`ipfs_${hash}`);
 }
+
+/**
+ * Get token logo URL from Piteas token list (PulseChain)
+ * Falls back to this when no stored image exists
+ */
+export function getPiteasLogoUrl(tokenAddress: string): string {
+  return `https://raw.githubusercontent.com/piteasio/app-tokens/main/token-logo/${tokenAddress}.png`;
+}
+
+/**
+ * Resolve token image — checks stored metadata first, then Piteas fallback
+ */
+export function resolveTokenImage(
+  tokenAddress: string,
+  storedImageUri?: string | null
+): { url: string; source: 'stored' | 'piteas' } | null {
+  if (storedImageUri) {
+    if (storedImageUri.startsWith('local://')) {
+      const data = getFromLocalStorage(storedImageUri);
+      if (data) return { url: data, source: 'stored' };
+    } else if (storedImageUri.startsWith('ipfs://')) {
+      return { url: ipfsToHttp(storedImageUri), source: 'stored' };
+    } else {
+      return { url: storedImageUri, source: 'stored' };
+    }
+  }
+  // Fallback: Piteas token logo
+  return { url: getPiteasLogoUrl(tokenAddress), source: 'piteas' };
+}
