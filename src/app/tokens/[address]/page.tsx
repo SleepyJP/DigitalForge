@@ -79,11 +79,6 @@ export default function TokenPage() {
     });
   }, [tokenAddress, writeEnableTrading]);
 
-  // Force scroll to top on mount — DexScreener iframe steals focus and scrolls page down
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
-
   useEffect(() => {
     const stored = getTokenMetadata(tokenAddress);
     if (stored) {
@@ -338,12 +333,10 @@ export default function TokenPage() {
                   </div>
                 </div>
 
-                {/* DexScreener Chart */}
-                <div className="relative z-0 isolate">
-                  <ErrorBoundary fallbackLabel="Chart">
-                    <DexScreenerChart tokenAddress={tokenAddress} height={400} />
-                  </ErrorBoundary>
-                </div>
+                {/* DexScreener Chart — starts collapsed, user clicks to expand */}
+                <ErrorBoundary fallbackLabel="Chart">
+                  <DexScreenerChart tokenAddress={tokenAddress} height={400} />
+                </ErrorBoundary>
 
                 {/* Transaction Feed — Buys/Sells */}
                 <ErrorBoundary fallbackLabel="Transactions">

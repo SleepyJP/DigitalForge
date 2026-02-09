@@ -164,7 +164,7 @@ export function LiveChat({ tokenAddress }: LiveChatProps) {
   const currentCost = useCustom ? customAmount : (SUPERCHAT_TIERS[selectedTier] ?? 0).toLocaleString();
 
   return (
-    <div className="glass-card rounded-xl border border-cyan-500/20 flex flex-col overflow-hidden" style={{ maxHeight: 500 }}>
+    <div className="glass-card rounded-xl border border-cyan-500/20 flex flex-col overflow-hidden" style={{ maxHeight: 300 }}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-cyan-500/10">
         <div className="flex items-center gap-2">

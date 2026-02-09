@@ -230,7 +230,7 @@ export function TransactionFeed({
       </div>
 
       {/* Transaction List */}
-      <div className="max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-cyan-500/20 scrollbar-track-transparent">
+      <div className="max-h-[250px] overflow-y-auto scrollbar-thin scrollbar-thumb-cyan-500/20 scrollbar-track-transparent">
         {isLoading && transactions.length === 0 ? (
           <div className="flex items-center justify-center py-12">
             <div className="w-5 h-5 border-2 border-gray-700 border-t-cyan-400 rounded-full animate-spin" />
