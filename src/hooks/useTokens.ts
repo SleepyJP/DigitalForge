@@ -12,13 +12,17 @@ import {
 export interface ForgedTokenInfo {
   address: Address;
   tokenId: number;
-  creator: Address;
   createdAt: number;
   tokenType: string;
   name?: string;
   symbol?: string;
   decimals?: number;
   totalSupply?: bigint;
+}
+
+export interface AddressShareEntry {
+  addr: Address;
+  share: bigint;
 }
 
 export interface TokenDetails {
@@ -36,19 +40,24 @@ export interface TokenDetails {
   liquidityShare: number;
   yieldShare: number;
   supportShare: number;
-  treasuryWallet: Address;
-  yieldToken: Address;
-  supportToken: Address;
+  treasuryWallets: AddressShareEntry[];
+  yieldTokens: AddressShareEntry[];
+  supportTokens: AddressShareEntry[];
   tradingEnabled: boolean;
   antiBotEnabled: boolean;
+  swapEnabled: boolean;
   maxTxAmount: bigint;
   maxWalletAmount: bigint;
-  totalBurned: bigint;
-  totalReflections: bigint;
-  totalYieldDistributed: bigint;
-  lpPair: Address;
+  swapThreshold: bigint;
+  totalReflected: bigint;
+  pair: Address;
+  pendingTreasury: bigint;
+  pendingBurn: bigint;
+  pendingReflection: bigint;
+  pendingLiquidity: bigint;
+  pendingYield: bigint;
+  pendingSupport: bigint;
   tokenId: number;
-  creator: Address;
   createdAt: number;
   tokenType: string;
 }
@@ -57,9 +66,9 @@ export interface UserHoldings {
   balance: bigint;
   formattedBalance: string;
   percentOfSupply: number;
-  pendingReflections: bigint;
-  pendingYield: bigint;
 }
+
+const MAX_ARRAY_READ = 20;
 
 // Get all forged token addresses
 export function useAllForgedTokens() {
@@ -88,7 +97,7 @@ export function useAllForgedTokens() {
   };
 }
 
-// Get token info from forge (V2 - uses isForgedToken)
+// Get token info from forge (V2 — uses isForgedToken)
 export function useTokenForgeInfo(tokenAddress: Address | undefined) {
   const { data: isForged, isLoading, error } = useReadContract({
     address: THE_DIGITAL_FORGE_ADDRESS,
@@ -104,12 +113,10 @@ export function useTokenForgeInfo(tokenAddress: Address | undefined) {
     return { tokenInfo: null, isLoading, error };
   }
 
-  // V2 doesn't store detailed token info in factory - all are TAX_TOKEN type
   const tokenInfo: ForgedTokenInfo = {
     address: tokenAddress!,
-    tokenId: 0, // V2 doesn't track per-token IDs
-    creator: '0x0000000000000000000000000000000000000000' as Address, // Get from token contract
-    createdAt: 0, // V2 doesn't track creation time
+    tokenId: 0,
+    createdAt: 0,
     tokenType: 'TAX_TOKEN',
   };
 
@@ -121,36 +128,14 @@ export function useTokenBasicInfo(tokenAddress: Address | undefined) {
   const { data, isLoading } = useReadContracts({
     contracts: tokenAddress
       ? [
-          {
-            address: tokenAddress,
-            abi: ERC20_ABI,
-            functionName: 'name',
-          },
-          {
-            address: tokenAddress,
-            abi: ERC20_ABI,
-            functionName: 'symbol',
-          },
-          {
-            address: tokenAddress,
-            abi: ERC20_ABI,
-            functionName: 'decimals',
-          },
-          {
-            address: tokenAddress,
-            abi: ERC20_ABI,
-            functionName: 'totalSupply',
-          },
-          {
-            address: tokenAddress,
-            abi: ERC20_ABI,
-            functionName: 'owner',
-          },
+          { address: tokenAddress, abi: ERC20_ABI, functionName: 'name' },
+          { address: tokenAddress, abi: ERC20_ABI, functionName: 'symbol' },
+          { address: tokenAddress, abi: ERC20_ABI, functionName: 'decimals' },
+          { address: tokenAddress, abi: ERC20_ABI, functionName: 'totalSupply' },
+          { address: tokenAddress, abi: ERC20_ABI, functionName: 'owner' },
         ]
       : [],
-    query: {
-      enabled: !!tokenAddress,
-    },
+    query: { enabled: !!tokenAddress },
   });
 
   if (!data) {
@@ -169,78 +154,119 @@ export function useTokenBasicInfo(tokenAddress: Address | undefined) {
   };
 }
 
-// Get full token details including tax config
+// Get full token details including tax config (V2/V3 compatible)
 export function useTokenDetails(tokenAddress: Address | undefined) {
   const { tokenInfo, isLoading: infoLoading } = useTokenForgeInfo(tokenAddress);
 
-  const { data, isLoading: detailsLoading } = useReadContracts({
+  // Phase 1: Scalar values
+  const { data: scalarData, isLoading: scalarLoading } = useReadContracts({
     contracts: tokenAddress
       ? [
-          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'name' },
-          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'symbol' },
-          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'decimals' },
-          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'totalSupply' },
-          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'owner' },
-          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'buyTax' },
-          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'sellTax' },
-          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'treasuryShare' },
-          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'burnShare' },
-          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'reflectionShare' },
-          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'liquidityShare' },
-          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'yieldShare' },
-          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'supportShare' },
-          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'treasuryWallet' },
-          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'yieldToken' },
-          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'supportToken' },
-          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'tradingEnabled' },
-          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'antiBotEnabled' },
-          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'maxTxAmount' },
-          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'maxWalletAmount' },
-          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'totalBurned' },
-          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'totalReflections' },
-          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'totalYieldDistributed' },
-          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'lpPair' },
+          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'name' },                  // 0
+          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'symbol' },                 // 1
+          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'decimals' },               // 2
+          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'totalSupply' },            // 3
+          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'owner' },                  // 4
+          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'buyTax' },                 // 5
+          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'sellTax' },                // 6
+          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'treasuryShare' },          // 7
+          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'burnShare' },              // 8
+          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'reflectionShare' },        // 9
+          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'liquidityShare' },         // 10
+          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'yieldShare' },             // 11
+          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'supportShare' },           // 12
+          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'tradingEnabled' },         // 13
+          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'antiBotEnabled' },         // 14
+          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'swapEnabled' },            // 15
+          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'maxTxAmount' },            // 16
+          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'maxWalletAmount' },        // 17
+          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'swapThreshold' },          // 18
+          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'totalReflected' },         // 19
+          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'pair' },                   // 20
+          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'pendingTreasury' },        // 21
+          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'pendingBurn' },            // 22
+          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'pendingReflection' },      // 23
+          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'pendingLiquidity' },       // 24
+          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'pendingYield' },           // 25
+          { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'pendingSupport' },         // 26
         ]
       : [],
-    query: {
-      enabled: !!tokenAddress,
-    },
+    query: { enabled: !!tokenAddress },
   });
 
-  const isLoading = infoLoading || detailsLoading;
+  // Phase 2: Array entries (read up to MAX_ARRAY_READ per array)
+  const { data: arrayData } = useReadContracts({
+    contracts: tokenAddress
+      ? [
+          ...Array.from({ length: MAX_ARRAY_READ }, (_, i) => ({
+            address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'treasuryWallets' as const, args: [BigInt(i)],
+          })),
+          ...Array.from({ length: MAX_ARRAY_READ }, (_, i) => ({
+            address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'yieldTokens' as const, args: [BigInt(i)],
+          })),
+          ...Array.from({ length: MAX_ARRAY_READ }, (_, i) => ({
+            address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'supportTokens' as const, args: [BigInt(i)],
+          })),
+        ]
+      : [],
+    query: { enabled: !!tokenAddress },
+  });
 
-  if (!data || !tokenInfo) {
+  const isLoading = infoLoading || scalarLoading;
+
+  if (!scalarData || !tokenInfo) {
     return { tokenDetails: null, isLoading };
   }
 
+  const ZERO_ADDR = '0x0000000000000000000000000000000000000000' as Address;
+
+  // Parse arrays
+  const parseArray = (offset: number): AddressShareEntry[] => {
+    const entries: AddressShareEntry[] = [];
+    if (!arrayData) return entries;
+    for (let i = 0; i < MAX_ARRAY_READ; i++) {
+      const entry = arrayData[offset + i];
+      if (entry?.status === 'success' && entry.result) {
+        const [addr, share] = entry.result as [Address, bigint];
+        if (addr && addr !== ZERO_ADDR) entries.push({ addr, share });
+      } else break;
+    }
+    return entries;
+  };
+
   const tokenDetails: TokenDetails = {
     address: tokenAddress!,
-    name: (data[0]?.result as string) || 'Unknown',
-    symbol: (data[1]?.result as string) || '???',
-    decimals: (data[2]?.result as number) || 18,
-    totalSupply: (data[3]?.result as bigint) || 0n,
-    owner: (data[4]?.result as Address) || '0x0000000000000000000000000000000000000000',
-    buyTax: Number((data[5]?.result as bigint) || 0n) / 100,
-    sellTax: Number((data[6]?.result as bigint) || 0n) / 100,
-    treasuryShare: Number((data[7]?.result as bigint) || 0n) / 100,
-    burnShare: Number((data[8]?.result as bigint) || 0n) / 100,
-    reflectionShare: Number((data[9]?.result as bigint) || 0n) / 100,
-    liquidityShare: Number((data[10]?.result as bigint) || 0n) / 100,
-    yieldShare: Number((data[11]?.result as bigint) || 0n) / 100,
-    supportShare: Number((data[12]?.result as bigint) || 0n) / 100,
-    treasuryWallet: (data[13]?.result as Address) || '0x0000000000000000000000000000000000000000',
-    yieldToken: (data[14]?.result as Address) || '0x0000000000000000000000000000000000000000',
-    supportToken: (data[15]?.result as Address) || '0x0000000000000000000000000000000000000000',
-    tradingEnabled: (data[16]?.result as boolean) || false,
-    antiBotEnabled: (data[17]?.result as boolean) || false,
-    maxTxAmount: (data[18]?.result as bigint) || 0n,
-    maxWalletAmount: (data[19]?.result as bigint) || 0n,
-    totalBurned: (data[20]?.result as bigint) || 0n,
-    totalReflections: (data[21]?.result as bigint) || 0n,
-    totalYieldDistributed: (data[22]?.result as bigint) || 0n,
-    lpPair: (data[23]?.result as Address) || '0x0000000000000000000000000000000000000000',
+    name: (scalarData[0]?.result as string) || 'Unknown',
+    symbol: (scalarData[1]?.result as string) || '???',
+    decimals: (scalarData[2]?.result as number) || 18,
+    totalSupply: (scalarData[3]?.result as bigint) || 0n,
+    owner: (scalarData[4]?.result as Address) || ZERO_ADDR,
+    buyTax: Number((scalarData[5]?.result as bigint) || 0n) / 100,
+    sellTax: Number((scalarData[6]?.result as bigint) || 0n) / 100,
+    treasuryShare: Number((scalarData[7]?.result as bigint) || 0n) / 100,
+    burnShare: Number((scalarData[8]?.result as bigint) || 0n) / 100,
+    reflectionShare: Number((scalarData[9]?.result as bigint) || 0n) / 100,
+    liquidityShare: Number((scalarData[10]?.result as bigint) || 0n) / 100,
+    yieldShare: Number((scalarData[11]?.result as bigint) || 0n) / 100,
+    supportShare: Number((scalarData[12]?.result as bigint) || 0n) / 100,
+    treasuryWallets: parseArray(0),
+    yieldTokens: parseArray(MAX_ARRAY_READ),
+    supportTokens: parseArray(MAX_ARRAY_READ * 2),
+    tradingEnabled: (scalarData[13]?.result as boolean) || false,
+    antiBotEnabled: (scalarData[14]?.result as boolean) || false,
+    swapEnabled: (scalarData[15]?.result as boolean) ?? true,
+    maxTxAmount: (scalarData[16]?.result as bigint) || 0n,
+    maxWalletAmount: (scalarData[17]?.result as bigint) || 0n,
+    swapThreshold: (scalarData[18]?.result as bigint) || 0n,
+    totalReflected: (scalarData[19]?.result as bigint) || 0n,
+    pair: (scalarData[20]?.result as Address) || ZERO_ADDR,
+    pendingTreasury: (scalarData[21]?.result as bigint) || 0n,
+    pendingBurn: (scalarData[22]?.result as bigint) || 0n,
+    pendingReflection: (scalarData[23]?.result as bigint) || 0n,
+    pendingLiquidity: (scalarData[24]?.result as bigint) || 0n,
+    pendingYield: (scalarData[25]?.result as bigint) || 0n,
+    pendingSupport: (scalarData[26]?.result as bigint) || 0n,
     tokenId: tokenInfo.tokenId,
-    creator: tokenInfo.creator,
     createdAt: tokenInfo.createdAt,
     tokenType: tokenInfo.tokenType,
   };
@@ -256,39 +282,12 @@ export function useUserHoldings(tokenAddress: Address | undefined) {
     contracts:
       tokenAddress && userAddress
         ? [
-            {
-              address: tokenAddress,
-              abi: FORGED_TOKEN_ABI,
-              functionName: 'balanceOf',
-              args: [userAddress],
-            },
-            {
-              address: tokenAddress,
-              abi: FORGED_TOKEN_ABI,
-              functionName: 'totalSupply',
-            },
-            {
-              address: tokenAddress,
-              abi: FORGED_TOKEN_ABI,
-              functionName: 'decimals',
-            },
-            {
-              address: tokenAddress,
-              abi: FORGED_TOKEN_ABI,
-              functionName: 'pendingReflections',
-              args: [userAddress],
-            },
-            {
-              address: tokenAddress,
-              abi: FORGED_TOKEN_ABI,
-              functionName: 'pendingYield',
-              args: [userAddress],
-            },
+            { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'balanceOf', args: [userAddress] },
+            { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'totalSupply' },
+            { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'decimals' },
           ]
         : [],
-    query: {
-      enabled: !!tokenAddress && !!userAddress,
-    },
+    query: { enabled: !!tokenAddress && !!userAddress },
   });
 
   if (!data || !userAddress) {
@@ -298,8 +297,6 @@ export function useUserHoldings(tokenAddress: Address | undefined) {
   const balance = (data[0]?.result as bigint) || 0n;
   const totalSupply = (data[1]?.result as bigint) || 1n;
   const decimals = (data[2]?.result as number) || 18;
-  const pendingReflections = (data[3]?.result as bigint) || 0n;
-  const pendingYield = (data[4]?.result as bigint) || 0n;
 
   const percentOfSupply = totalSupply > 0n ? (Number(balance) / Number(totalSupply)) * 100 : 0;
 
@@ -307,8 +304,6 @@ export function useUserHoldings(tokenAddress: Address | undefined) {
     balance,
     formattedBalance: formatUnits(balance, decimals),
     percentOfSupply,
-    pendingReflections,
-    pendingYield,
   };
 
   return { holdings, isLoading, isConnected: true };
@@ -325,9 +320,7 @@ export function useMultipleTokensBasicInfo(tokenAddresses: Address[]) {
 
   const { data, isLoading } = useReadContracts({
     contracts,
-    query: {
-      enabled: tokenAddresses.length > 0,
-    },
+    query: { enabled: tokenAddresses.length > 0 },
   });
 
   if (!data) {

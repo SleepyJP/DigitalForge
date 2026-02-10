@@ -9,14 +9,12 @@ import { FORGED_TOKEN_ABI } from '@/lib/contracts';
 // =====================================================================
 // THE DIGITAL FORGE - Buyback & Reward Tokens Panel
 // Displays the full tax distribution breakdown + buyback token emblems
-// Ported from PUMP.FUD TaxTokenStats pattern
+// V3-compatible: reads array-based getters for multi-address support
 // =====================================================================
 
-// Known PulseChain token logos via Piteas
 const getTokenLogoUrl = (address: string) =>
   `https://raw.githubusercontent.com/piteasio/app-tokens/main/token-logo/${address}.png`;
 
-// Well-known PulseChain tokens for display
 const KNOWN_TOKENS: Record<string, { name: string; symbol: string; color: string }> = {
   '0xa1077a294dde1b09bb078844df40758a5d0f9a27': { name: 'Wrapped PLS', symbol: 'WPLS', color: '#00ff88' },
   '0x2b591e99afe9f32eaa6214f7b7629768c40eeb39': { name: 'HEX', symbol: 'HEX', color: '#ff6600' },
@@ -38,59 +36,126 @@ const DISTRIBUTION_COLORS: Record<string, string> = {
   support: '#FF00FF',
 };
 
+const MAX_ARRAY_READ = 20; // Max entries to read per array
+
 interface BuybackTokensPanelProps {
   tokenAddress?: Address;
   tokenSymbol?: string;
 }
 
 export function BuybackTokensPanel({ tokenAddress }: BuybackTokensPanelProps) {
-  // Read all tax distribution shares + token addresses from the contract
-  const contracts = useMemo(() => {
+  // Phase 1: Read shares, tax rates, counts, pair, and pending amounts
+  const phase1Contracts = useMemo(() => {
     if (!tokenAddress) return [];
+    const abi = FORGED_TOKEN_ABI;
+    const addr = tokenAddress;
     return [
-      { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'buyTax' as const },
-      { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'sellTax' as const },
-      { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'treasuryShare' as const },
-      { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'burnShare' as const },
-      { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'reflectionShare' as const },
-      { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'liquidityShare' as const },
-      { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'yieldShare' as const },
-      { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'supportShare' as const },
-      { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'treasuryWallet' as const },
-      { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'yieldToken' as const },
-      { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'supportToken' as const },
-      { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'totalBurned' as const },
-      { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'totalReflections' as const },
-      { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'totalYieldDistributed' as const },
-      { address: tokenAddress, abi: FORGED_TOKEN_ABI, functionName: 'lpPair' as const },
+      { address: addr, abi, functionName: 'buyTax' as const },                   // 0
+      { address: addr, abi, functionName: 'sellTax' as const },                   // 1
+      { address: addr, abi, functionName: 'treasuryShare' as const },             // 2
+      { address: addr, abi, functionName: 'burnShare' as const },                 // 3
+      { address: addr, abi, functionName: 'reflectionShare' as const },           // 4
+      { address: addr, abi, functionName: 'liquidityShare' as const },            // 5
+      { address: addr, abi, functionName: 'yieldShare' as const },                // 6
+      { address: addr, abi, functionName: 'supportShare' as const },              // 7
+      { address: addr, abi, functionName: 'pair' as const },                      // 8
+      { address: addr, abi, functionName: 'totalReflected' as const },            // 9
+      { address: addr, abi, functionName: 'swapThreshold' as const },             // 10
+      { address: addr, abi, functionName: 'swapEnabled' as const },               // 11
+      { address: addr, abi, functionName: 'pendingTreasury' as const },           // 12
+      { address: addr, abi, functionName: 'pendingBurn' as const },               // 13
+      { address: addr, abi, functionName: 'pendingReflection' as const },         // 14
+      { address: addr, abi, functionName: 'pendingLiquidity' as const },          // 15
+      { address: addr, abi, functionName: 'pendingYield' as const },              // 16
+      { address: addr, abi, functionName: 'pendingSupport' as const },            // 17
+      { address: addr, abi, functionName: 'getHolderCount' as const },            // 18
     ];
   }, [tokenAddress]);
 
-  const { data: results } = useReadContracts({
-    contracts: contracts as readonly unknown[],
-    query: { enabled: contracts.length > 0 },
+  const { data: phase1 } = useReadContracts({
+    contracts: phase1Contracts as readonly unknown[],
+    query: { enabled: phase1Contracts.length > 0 },
+  });
+
+  // Phase 2: Read array entries — try reading indices 0-19 for each array
+  // Failed reads (out of bounds) return error status, which we filter out
+  const phase2Contracts = useMemo(() => {
+    if (!tokenAddress) return [];
+    const abi = FORGED_TOKEN_ABI;
+    const addr = tokenAddress;
+    const calls: unknown[] = [];
+
+    for (let i = 0; i < MAX_ARRAY_READ; i++) {
+      calls.push({ address: addr, abi, functionName: 'treasuryWallets' as const, args: [BigInt(i)] });
+    }
+    for (let i = 0; i < MAX_ARRAY_READ; i++) {
+      calls.push({ address: addr, abi, functionName: 'yieldTokens' as const, args: [BigInt(i)] });
+    }
+    for (let i = 0; i < MAX_ARRAY_READ; i++) {
+      calls.push({ address: addr, abi, functionName: 'supportTokens' as const, args: [BigInt(i)] });
+    }
+
+    return calls;
+  }, [tokenAddress]);
+
+  const { data: phase2 } = useReadContracts({
+    contracts: phase2Contracts as readonly unknown[],
+    query: { enabled: phase2Contracts.length > 0 },
   });
 
   const data = useMemo(() => {
-    if (!results) return null;
+    if (!phase1) return null;
 
-    const buyTax = (results[0]?.result as bigint) || 0n;
-    const sellTax = (results[1]?.result as bigint) || 0n;
-    const treasuryShare = Number((results[2]?.result as bigint) || 0n);
-    const burnShare = Number((results[3]?.result as bigint) || 0n);
-    const reflectionShare = Number((results[4]?.result as bigint) || 0n);
-    const liquidityShare = Number((results[5]?.result as bigint) || 0n);
-    const yieldShare = Number((results[6]?.result as bigint) || 0n);
-    const supportShare = Number((results[7]?.result as bigint) || 0n);
-    const treasuryWallet = (results[8]?.result as Address) || null;
-    const yieldToken = (results[9]?.result as Address) || null;
-    const supportToken = (results[10]?.result as Address) || null;
-    const totalBurned = (results[11]?.result as bigint) || 0n;
-    const totalReflections = (results[12]?.result as bigint) || 0n;
-    const totalYieldDistributed = (results[13]?.result as bigint) || 0n;
-    const lpPair = (results[14]?.result as Address) || null;
+    const buyTax = (phase1[0]?.result as bigint) || 0n;
+    const sellTax = (phase1[1]?.result as bigint) || 0n;
+    const treasuryShare = Number((phase1[2]?.result as bigint) || 0n);
+    const burnShare = Number((phase1[3]?.result as bigint) || 0n);
+    const reflectionShare = Number((phase1[4]?.result as bigint) || 0n);
+    const liquidityShare = Number((phase1[5]?.result as bigint) || 0n);
+    const yieldShare = Number((phase1[6]?.result as bigint) || 0n);
+    const supportShare = Number((phase1[7]?.result as bigint) || 0n);
+    const lpPair = (phase1[8]?.result as Address) || null;
+    const totalReflected = (phase1[9]?.result as bigint) || 0n;
+    const swapThreshold = (phase1[10]?.result as bigint) || 0n;
+    const swapEnabled = (phase1[11]?.result as boolean) ?? true;
+    const pendingTreasury = (phase1[12]?.result as bigint) || 0n;
+    const pendingBurn = (phase1[13]?.result as bigint) || 0n;
+    const pendingReflection = (phase1[14]?.result as bigint) || 0n;
+    const pendingLiquidity = (phase1[15]?.result as bigint) || 0n;
+    const pendingYield = (phase1[16]?.result as bigint) || 0n;
+    const pendingSupport = (phase1[17]?.result as bigint) || 0n;
+    const holderCount = Number((phase1[18]?.result as bigint) || 0n);
 
-    // Build distribution breakdown (divide by 100 to convert from basis points to percent)
+    // Parse arrays from phase2
+    const treasuryWallets: { addr: Address; share: bigint }[] = [];
+    const yieldTokenAddrs: { addr: Address; share: bigint }[] = [];
+    const supportTokenAddrs: { addr: Address; share: bigint }[] = [];
+
+    if (phase2) {
+      const ZERO = '0x0000000000000000000000000000000000000000';
+      for (let i = 0; i < MAX_ARRAY_READ; i++) {
+        const entry = phase2[i];
+        if (entry?.status === 'success' && entry.result) {
+          const [addr, share] = entry.result as [Address, bigint];
+          if (addr && addr !== ZERO) treasuryWallets.push({ addr, share });
+        } else break;
+      }
+      for (let i = 0; i < MAX_ARRAY_READ; i++) {
+        const entry = phase2[MAX_ARRAY_READ + i];
+        if (entry?.status === 'success' && entry.result) {
+          const [addr, share] = entry.result as [Address, bigint];
+          if (addr && addr !== ZERO) yieldTokenAddrs.push({ addr, share });
+        } else break;
+      }
+      for (let i = 0; i < MAX_ARRAY_READ; i++) {
+        const entry = phase2[MAX_ARRAY_READ * 2 + i];
+        if (entry?.status === 'success' && entry.result) {
+          const [addr, share] = entry.result as [Address, bigint];
+          if (addr && addr !== ZERO) supportTokenAddrs.push({ addr, share });
+        } else break;
+      }
+    }
+
     const distributions = [
       { key: 'treasury', label: 'Treasury', share: treasuryShare / 100, color: DISTRIBUTION_COLORS.treasury, icon: <Building2 size={12} /> },
       { key: 'burn', label: 'Burn', share: burnShare / 100, color: DISTRIBUTION_COLORS.burn, icon: <Flame size={12} /> },
@@ -100,27 +165,29 @@ export function BuybackTokensPanel({ tokenAddress }: BuybackTokensPanelProps) {
       { key: 'support', label: 'Support Buyback', share: supportShare / 100, color: DISTRIBUTION_COLORS.support, icon: <Zap size={12} /> },
     ].filter((d) => d.share > 0);
 
-    // Collect reward/buyback token addresses
-    const rewardTokens: { address: Address; type: string }[] = [];
-    if (yieldToken && yieldToken !== '0x0000000000000000000000000000000000000000') {
-      rewardTokens.push({ address: yieldToken, type: 'Yield' });
-    }
-    if (supportToken && supportToken !== '0x0000000000000000000000000000000000000000') {
-      rewardTokens.push({ address: supportToken, type: 'Support' });
-    }
+    const totalPending = pendingTreasury + pendingBurn + pendingReflection + pendingLiquidity + pendingYield + pendingSupport;
 
     return {
       buyTax: Number(buyTax) / 100,
       sellTax: Number(sellTax) / 100,
       distributions,
-      treasuryWallet,
-      rewardTokens,
-      totalBurned,
-      totalReflections,
-      totalYieldDistributed,
+      treasuryWallets,
+      yieldTokenAddrs,
+      supportTokenAddrs,
+      totalReflected,
       lpPair,
+      swapThreshold,
+      swapEnabled,
+      pendingTreasury,
+      pendingBurn,
+      pendingReflection,
+      pendingLiquidity,
+      pendingYield,
+      pendingSupport,
+      totalPending,
+      holderCount,
     };
-  }, [results]);
+  }, [phase1, phase2]);
 
   if (!data || (data.buyTax === 0 && data.sellTax === 0)) return null;
 
@@ -128,7 +195,7 @@ export function BuybackTokensPanel({ tokenAddress }: BuybackTokensPanelProps) {
     const num = Number(formatUnits(amount, 18));
     if (num >= 1_000_000) return (num / 1_000_000).toFixed(2) + 'M';
     if (num >= 1_000) return (num / 1_000).toFixed(2) + 'K';
-    if (num < 0.01) return '< 0.01';
+    if (num < 0.01 && num > 0) return '< 0.01';
     return num.toFixed(2);
   };
 
@@ -137,6 +204,11 @@ export function BuybackTokensPanel({ tokenAddress }: BuybackTokensPanelProps) {
     if (known) return known;
     return { name: 'Unknown Token', symbol: addr.slice(0, 6) + '...' + addr.slice(-4), color: '#888888' };
   };
+
+  const allRewardTokens = [
+    ...data.yieldTokenAddrs.map((t) => ({ ...t, type: 'Yield' })),
+    ...data.supportTokenAddrs.map((t) => ({ ...t, type: 'Support' })),
+  ];
 
   return (
     <div className="glass-card rounded-xl border border-purple-500/20 overflow-hidden">
@@ -150,6 +222,12 @@ export function BuybackTokensPanel({ tokenAddress }: BuybackTokensPanelProps) {
             <h3 className="font-orbitron font-bold text-white text-sm">TAX TOKENOMICS</h3>
             <p className="text-[10px] text-gray-500 font-rajdhani">Fee-on-Transfer Distribution</p>
           </div>
+          {data.holderCount > 0 && (
+            <div className="ml-auto text-right">
+              <p className="text-xs font-mono text-cyan-400">{data.holderCount.toLocaleString()}</p>
+              <p className="text-[9px] text-gray-500 font-rajdhani">Holders</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -197,30 +275,81 @@ export function BuybackTokensPanel({ tokenAddress }: BuybackTokensPanelProps) {
           </div>
         )}
 
-        {/* Reward / Buyback Tokens */}
-        {data.rewardTokens.length > 0 && (
+        {/* Pending Distribution Status */}
+        {data.totalPending > 0n && (
+          <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-lg p-3">
+            <div className="text-[10px] text-yellow-400 font-rajdhani uppercase mb-2">Pending Distribution</div>
+            <div className="grid grid-cols-3 gap-2">
+              {data.pendingTreasury > 0n && (
+                <div className="text-center">
+                  <p className="text-xs font-mono text-yellow-400">{formatAmount(data.pendingTreasury)}</p>
+                  <p className="text-[8px] text-gray-500">Treasury</p>
+                </div>
+              )}
+              {data.pendingBurn > 0n && (
+                <div className="text-center">
+                  <p className="text-xs font-mono text-orange-400">{formatAmount(data.pendingBurn)}</p>
+                  <p className="text-[8px] text-gray-500">Burn</p>
+                </div>
+              )}
+              {data.pendingReflection > 0n && (
+                <div className="text-center">
+                  <p className="text-xs font-mono text-green-400">{formatAmount(data.pendingReflection)}</p>
+                  <p className="text-[8px] text-gray-500">Reflection</p>
+                </div>
+              )}
+              {data.pendingLiquidity > 0n && (
+                <div className="text-center">
+                  <p className="text-xs font-mono text-cyan-400">{formatAmount(data.pendingLiquidity)}</p>
+                  <p className="text-[8px] text-gray-500">Liquidity</p>
+                </div>
+              )}
+              {data.pendingYield > 0n && (
+                <div className="text-center">
+                  <p className="text-xs font-mono text-purple-400">{formatAmount(data.pendingYield)}</p>
+                  <p className="text-[8px] text-gray-500">Yield</p>
+                </div>
+              )}
+              {data.pendingSupport > 0n && (
+                <div className="text-center">
+                  <p className="text-xs font-mono text-pink-400">{formatAmount(data.pendingSupport)}</p>
+                  <p className="text-[8px] text-gray-500">Support</p>
+                </div>
+              )}
+            </div>
+            <div className="mt-2 pt-2 border-t border-yellow-500/10 flex items-center justify-between">
+              <span className="text-[9px] text-gray-500">Swap threshold: {formatAmount(data.swapThreshold)}</span>
+              <span className={`text-[9px] font-mono ${data.swapEnabled ? 'text-green-400' : 'text-red-400'}`}>
+                {data.swapEnabled ? 'AUTO-SWAP ON' : 'AUTO-SWAP OFF'}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Reward / Buyback Tokens (ALL from arrays) */}
+        {allRewardTokens.length > 0 && (
           <div>
             <div className="text-[10px] text-gray-500 font-rajdhani uppercase mb-2">
-              Buyback & Reward Tokens
+              Buyback & Reward Tokens ({allRewardTokens.length})
             </div>
             <div className="space-y-2">
-              {data.rewardTokens.map((rt) => {
-                const info = getTokenInfo(rt.address);
+              {allRewardTokens.map((rt) => {
+                const info = getTokenInfo(rt.addr);
+                const sharePct = (Number(rt.share) / 100).toFixed(1);
                 return (
                   <a
-                    key={rt.address + rt.type}
-                    href={`https://scan.pulsechain.com/token/${rt.address}`}
+                    key={rt.addr + rt.type}
+                    href={`https://scan.pulsechain.com/token/${rt.addr}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-3 p-3 bg-gray-900/50 rounded-lg border border-gray-800 hover:border-purple-500/40 transition-all group"
                   >
-                    {/* Token Logo */}
                     <div
                       className="w-8 h-8 rounded-full overflow-hidden border-2 flex-shrink-0"
                       style={{ borderColor: info.color + '60' }}
                     >
                       <img
-                        src={getTokenLogoUrl(rt.address)}
+                        src={getTokenLogoUrl(rt.addr)}
                         alt={info.symbol}
                         className="w-full h-full object-cover"
                         onError={(e) => {
@@ -230,20 +359,18 @@ export function BuybackTokensPanel({ tokenAddress }: BuybackTokensPanelProps) {
                         }}
                       />
                     </div>
-
-                    {/* Token Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="font-mono font-bold text-white text-sm">{info.symbol}</span>
                         <span className="text-[10px] text-gray-500 font-rajdhani px-1.5 py-0.5 bg-purple-500/10 rounded border border-purple-500/20">
                           {rt.type}
                         </span>
+                        <span className="text-[10px] text-gray-400 font-mono">{sharePct}%</span>
                       </div>
                       <span className="text-[10px] text-gray-500 font-mono">
-                        {rt.address.slice(0, 10)}...{rt.address.slice(-6)}
+                        {rt.addr.slice(0, 10)}...{rt.addr.slice(-6)}
                       </span>
                     </div>
-
                     <ExternalLink size={12} className="text-gray-600 group-hover:text-purple-400 transition-colors flex-shrink-0" />
                   </a>
                 );
@@ -252,49 +379,44 @@ export function BuybackTokensPanel({ tokenAddress }: BuybackTokensPanelProps) {
           </div>
         )}
 
-        {/* Treasury */}
-        {data.treasuryWallet && data.treasuryWallet !== '0x0000000000000000000000000000000000000000' && (
+        {/* Treasury Wallets (ALL from array) */}
+        {data.treasuryWallets.length > 0 && (
           <div>
-            <div className="text-[10px] text-gray-500 font-rajdhani uppercase mb-2">Treasury Wallet</div>
-            <a
-              href={`https://scan.pulsechain.com/address/${data.treasuryWallet}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 p-3 bg-yellow-500/5 rounded-lg border border-yellow-500/20 hover:border-yellow-500/40 transition-all"
-            >
-              <Building2 size={14} className="text-yellow-400 flex-shrink-0" />
-              <span className="text-yellow-400 font-mono text-xs truncate">{data.treasuryWallet}</span>
-              <ExternalLink size={10} className="text-yellow-400/50 flex-shrink-0" />
-            </a>
+            <div className="text-[10px] text-gray-500 font-rajdhani uppercase mb-2">
+              Treasury Wallet{data.treasuryWallets.length > 1 ? 's' : ''} ({data.treasuryWallets.length})
+            </div>
+            <div className="space-y-2">
+              {data.treasuryWallets.map((tw) => {
+                const sharePct = (Number(tw.share) / 100).toFixed(1);
+                return (
+                  <a
+                    key={tw.addr}
+                    href={`https://scan.pulsechain.com/address/${tw.addr}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 p-3 bg-yellow-500/5 rounded-lg border border-yellow-500/20 hover:border-yellow-500/40 transition-all"
+                  >
+                    <Building2 size={14} className="text-yellow-400 flex-shrink-0" />
+                    <span className="text-yellow-400 font-mono text-xs truncate">{tw.addr}</span>
+                    <span className="text-[10px] text-gray-400 font-mono ml-auto flex-shrink-0">{sharePct}%</span>
+                    <ExternalLink size={10} className="text-yellow-400/50 flex-shrink-0" />
+                  </a>
+                );
+              })}
+            </div>
           </div>
         )}
 
         {/* Lifetime Stats */}
-        {(data.totalBurned > 0n || data.totalReflections > 0n || data.totalYieldDistributed > 0n) && (
+        {data.totalReflected > 0n && (
           <div>
             <div className="text-[10px] text-gray-500 font-rajdhani uppercase mb-2">Lifetime Stats</div>
-            <div className="grid grid-cols-3 gap-2">
-              {data.totalBurned > 0n && (
-                <div className="p-2 bg-black/30 rounded border border-gray-800 text-center">
-                  <Flame size={12} className="text-orange-400 mx-auto mb-1" />
-                  <div className="font-mono text-orange-400 text-sm font-bold">{formatAmount(data.totalBurned)}</div>
-                  <div className="text-[9px] text-gray-500">Burned</div>
-                </div>
-              )}
-              {data.totalReflections > 0n && (
-                <div className="p-2 bg-black/30 rounded border border-gray-800 text-center">
-                  <Gift size={12} className="text-green-400 mx-auto mb-1" />
-                  <div className="font-mono text-green-400 text-sm font-bold">{formatAmount(data.totalReflections)}</div>
-                  <div className="text-[9px] text-gray-500">Reflected</div>
-                </div>
-              )}
-              {data.totalYieldDistributed > 0n && (
-                <div className="p-2 bg-black/30 rounded border border-gray-800 text-center">
-                  <TrendingUp size={12} className="text-purple-400 mx-auto mb-1" />
-                  <div className="font-mono text-purple-400 text-sm font-bold">{formatAmount(data.totalYieldDistributed)}</div>
-                  <div className="text-[9px] text-gray-500">Yield Dist.</div>
-                </div>
-              )}
+            <div className="grid grid-cols-1 gap-2">
+              <div className="p-2 bg-black/30 rounded border border-gray-800 text-center">
+                <Gift size={12} className="text-green-400 mx-auto mb-1" />
+                <div className="font-mono text-green-400 text-sm font-bold">{formatAmount(data.totalReflected)}</div>
+                <div className="text-[9px] text-gray-500">Total Reflected</div>
+              </div>
             </div>
           </div>
         )}

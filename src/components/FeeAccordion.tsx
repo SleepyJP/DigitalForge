@@ -128,11 +128,13 @@ interface FeeAccordionProps {
 }
 
 // Helper to calculate buy/sell from an entry
+// Unified: same rate applies to BOTH buy and sell (no division)
+// Split: separate buy/sell values
 const getEntryBuyTax = (entry: AddressEntry) =>
-  entry.split ? entry.share : entry.share / 2;
+  entry.split ? entry.share : entry.share;
 
 const getEntrySellTax = (entry: AddressEntry) =>
-  entry.split ? entry.sellShare : entry.share / 2;
+  entry.split ? entry.sellShare : entry.share;
 
 export default function FeeAccordion({ formData, onChange, showReceiveInPLS = true }: FeeAccordionProps) {
   const [expandedSection, setExpandedSection] = useState<string | null>('treasury');
@@ -156,8 +158,8 @@ export default function FeeAccordion({ formData, onChange, showReceiveInPLS = tr
       const share = formData.reflectionShare || 0;
       const sellShare = formData.reflectionShareSell || 0;
       const isSplit = formData.reflectionSplit || false;
-      totalBuyTax += isSplit ? share : share / 2;
-      totalSellTax += isSplit ? sellShare : share / 2;
+      totalBuyTax += isSplit ? share : share;
+      totalSellTax += isSplit ? sellShare : share;
     }
   });
 
@@ -242,8 +244,8 @@ function FeeSectionComponent({ section, formData, onChange, isExpanded, onToggle
     const share = formData.reflectionShare || 0;
     const sellShare = formData.reflectionShareSell || 0;
     const isSplit = formData.reflectionSplit || false;
-    sectionBuyTax = isSplit ? share : share / 2;
-    sectionSellTax = isSplit ? sellShare : share / 2;
+    sectionBuyTax = isSplit ? share : share;
+    sectionSellTax = isSplit ? sellShare : share;
   }
 
   const hasAnyTax = sectionBuyTax > 0 || sectionSellTax > 0;
@@ -436,7 +438,7 @@ function FeeSectionComponent({ section, formData, onChange, isExpanded, onToggle
                   ) : (
                     <div>
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-400">Total Tax:</span>
+                        <span className="text-sm text-gray-400">Tax %:</span>
                         <div className="flex items-center gap-2">
                           <input
                             type="number"
@@ -453,7 +455,7 @@ function FeeSectionComponent({ section, formData, onChange, isExpanded, onToggle
                       </div>
                       {entry.share > 0 && (
                         <div className="text-xs text-gray-500 mt-1 text-right">
-                          = {entry.share / 2}% buy + {entry.share / 2}% sell
+                          = {entry.share}% buy &amp; {entry.share}% sell
                         </div>
                       )}
                     </div>
@@ -568,7 +570,7 @@ function FeeSectionComponent({ section, formData, onChange, isExpanded, onToggle
               ) : (
                 <div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-400">Total Tax:</span>
+                    <span className="text-sm text-gray-400">Tax %:</span>
                     <div className="flex items-center gap-2">
                       <input
                         type="number"
@@ -585,7 +587,7 @@ function FeeSectionComponent({ section, formData, onChange, isExpanded, onToggle
                   </div>
                   {reflectionShare > 0 && (
                     <div className="text-xs text-gray-500 mt-1 text-right">
-                      = {reflectionShare / 2}% buy + {reflectionShare / 2}% sell
+                      = {reflectionShare}% buy &amp; {reflectionShare}% sell
                     </div>
                   )}
                 </div>

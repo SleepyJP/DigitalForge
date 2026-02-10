@@ -42,72 +42,16 @@ const ERC20_ABI = [
   },
 ] as const;
 
-// Tax token specific ABI
+// Tax token specific ABI (V2/V3 compatible)
 const TAX_TOKEN_ABI = [
   ...ERC20_ABI,
-  {
-    inputs: [],
-    name: 'buyTax',
-    outputs: [{ type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'sellTax',
-    outputs: [{ type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'treasuryWallet',
-    outputs: [{ type: 'address' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'tradingEnabled',
-    outputs: [{ type: 'bool' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'creator',
-    outputs: [{ type: 'address' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'totalReflections',
-    outputs: [{ type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'totalYieldDistributed',
-    outputs: [{ type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [{ name: 'account', type: 'address' }],
-    name: 'pendingReflections',
-    outputs: [{ type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [{ name: 'account', type: 'address' }],
-    name: 'pendingYield',
-    outputs: [{ type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
+  { inputs: [], name: 'buyTax', outputs: [{ type: 'uint256' }], stateMutability: 'view', type: 'function' },
+  { inputs: [], name: 'sellTax', outputs: [{ type: 'uint256' }], stateMutability: 'view', type: 'function' },
+  { inputs: [{ type: 'uint256' }], name: 'treasuryWallets', outputs: [{ name: 'addr', type: 'address' }, { name: 'share', type: 'uint256' }], stateMutability: 'view', type: 'function' },
+  { inputs: [], name: 'tradingEnabled', outputs: [{ type: 'bool' }], stateMutability: 'view', type: 'function' },
+  { inputs: [], name: 'owner', outputs: [{ type: 'address' }], stateMutability: 'view', type: 'function' },
+  { inputs: [], name: 'totalReflected', outputs: [{ type: 'uint256' }], stateMutability: 'view', type: 'function' },
+  { inputs: [], name: 'pair', outputs: [{ type: 'address' }], stateMutability: 'view', type: 'function' },
 ] as const;
 
 export { TAX_TOKEN_ABI, ERC20_ABI };
@@ -115,6 +59,7 @@ export { TAX_TOKEN_ABI, ERC20_ABI };
 // Tokens from previous contract versions that are dead/delisted — hide from gallery
 const HIDDEN_TOKENS: Set<string> = new Set([
   '0x08b04ad71b005d0c544f661c6775922638ac0a66', // Old Paisley Protocol test token (liquidity removed)
+  '0x57cd040d5d3bbe3a6533e4724006073e613a6742', // Paisley Protocol Platform Rewarder (removed from gallery)
 ]);
 
 export const HIDDEN_TOKEN_COUNT = HIDDEN_TOKENS.size;
@@ -185,7 +130,7 @@ export function useForgeTokens(offset: number = 0, limit: number = 50) {
       { address: addr, abi: TAX_TOKEN_ABI, functionName: 'buyTax' as const },
       { address: addr, abi: TAX_TOKEN_ABI, functionName: 'sellTax' as const },
       { address: addr, abi: TAX_TOKEN_ABI, functionName: 'tradingEnabled' as const },
-      { address: addr, abi: TAX_TOKEN_ABI, functionName: 'creator' as const },
+      { address: addr, abi: TAX_TOKEN_ABI, functionName: 'owner' as const },
     ]);
   }, [tokenAddresses]);
 
@@ -212,12 +157,12 @@ export function useForgeTokens(offset: number = 0, limit: number = 50) {
         const buyTax = taxResults ? (taxResults[taxIdx]?.result as bigint) : undefined;
         const sellTax = taxResults ? (taxResults[taxIdx + 1]?.result as bigint) : undefined;
         const tradingEnabled = taxResults ? (taxResults[taxIdx + 2]?.result as boolean) : undefined;
-        const creator = taxResults ? (taxResults[taxIdx + 3]?.result as Address) : '0x0000000000000000000000000000000000000000' as Address;
+        const tokenOwner = taxResults ? (taxResults[taxIdx + 3]?.result as Address) : '0x0000000000000000000000000000000000000000' as Address;
 
         return {
           address: addr,
           tokenId: BigInt(i),
-          creator,
+          creator: tokenOwner,
           createdAt: 0n,
           tokenType: 'FORGE',
           name,
@@ -257,37 +202,25 @@ export function useTaxTokenData(tokenAddress?: Address, userAddress?: Address) {
     if (!tokenAddress) return [];
 
     const baseContracts = [
-      { address: tokenAddress, abi: TAX_TOKEN_ABI, functionName: 'name' as const },
-      { address: tokenAddress, abi: TAX_TOKEN_ABI, functionName: 'symbol' as const },
-      { address: tokenAddress, abi: TAX_TOKEN_ABI, functionName: 'decimals' as const },
-      { address: tokenAddress, abi: TAX_TOKEN_ABI, functionName: 'totalSupply' as const },
-      { address: tokenAddress, abi: TAX_TOKEN_ABI, functionName: 'buyTax' as const },
-      { address: tokenAddress, abi: TAX_TOKEN_ABI, functionName: 'sellTax' as const },
-      { address: tokenAddress, abi: TAX_TOKEN_ABI, functionName: 'tradingEnabled' as const },
-      { address: tokenAddress, abi: TAX_TOKEN_ABI, functionName: 'creator' as const },
-      { address: tokenAddress, abi: TAX_TOKEN_ABI, functionName: 'treasuryWallet' as const },
-      { address: tokenAddress, abi: TAX_TOKEN_ABI, functionName: 'totalReflections' as const },
-      { address: tokenAddress, abi: TAX_TOKEN_ABI, functionName: 'totalYieldDistributed' as const },
+      { address: tokenAddress, abi: TAX_TOKEN_ABI, functionName: 'name' as const },          // 0
+      { address: tokenAddress, abi: TAX_TOKEN_ABI, functionName: 'symbol' as const },         // 1
+      { address: tokenAddress, abi: TAX_TOKEN_ABI, functionName: 'decimals' as const },        // 2
+      { address: tokenAddress, abi: TAX_TOKEN_ABI, functionName: 'totalSupply' as const },     // 3
+      { address: tokenAddress, abi: TAX_TOKEN_ABI, functionName: 'buyTax' as const },          // 4
+      { address: tokenAddress, abi: TAX_TOKEN_ABI, functionName: 'sellTax' as const },         // 5
+      { address: tokenAddress, abi: TAX_TOKEN_ABI, functionName: 'tradingEnabled' as const },  // 6
+      { address: tokenAddress, abi: TAX_TOKEN_ABI, functionName: 'owner' as const },           // 7
+      { address: tokenAddress, abi: TAX_TOKEN_ABI, functionName: 'totalReflected' as const },  // 8
+      { address: tokenAddress, abi: TAX_TOKEN_ABI, functionName: 'pair' as const },            // 9
     ];
 
-    // Add user-specific calls if address provided
-    if (userAddress) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (baseContracts as unknown[]).push(
-        {
-          address: tokenAddress,
-          abi: TAX_TOKEN_ABI,
-          functionName: 'pendingReflections' as const,
-          args: [userAddress],
-        },
-        {
-          address: tokenAddress,
-          abi: TAX_TOKEN_ABI,
-          functionName: 'pendingYield' as const,
-          args: [userAddress],
-        }
-      );
-    }
+    // Read first treasury wallet (index 0)
+    (baseContracts as unknown[]).push({
+      address: tokenAddress,
+      abi: TAX_TOKEN_ABI,
+      functionName: 'treasuryWallets' as const,
+      args: [0n],
+    }); // 10
 
     return baseContracts;
   }, [tokenAddress, userAddress]);
@@ -301,11 +234,15 @@ export function useTaxTokenData(tokenAddress?: Address, userAddress?: Address) {
   const tokenData = useMemo(() => {
     if (!results || !tokenAddress) return null;
 
+    // Parse treasury wallet from array getter (returns [addr, share])
+    const treasuryEntry = results[10]?.status === 'success' ? results[10].result as [Address, bigint] : null;
+    const treasuryWallet = treasuryEntry?.[0] || '0x0000000000000000000000000000000000000000' as Address;
+
     return {
       address: tokenAddress,
-      tokenId: 0n, // V2 doesn't track token IDs per-token
+      tokenId: 0n,
       tokenType: isForged ? 'FORGE' : 'UNKNOWN',
-      createdAt: 0n, // V2 doesn't track creation time
+      createdAt: 0n,
       name: (results[0]?.result as string) || 'Unknown',
       symbol: (results[1]?.result as string) || '???',
       decimals: (results[2]?.result as number) ?? 18,
@@ -314,11 +251,9 @@ export function useTaxTokenData(tokenAddress?: Address, userAddress?: Address) {
       sellTax: (results[5]?.result as bigint) || 0n,
       tradingEnabled: (results[6]?.result as boolean) ?? true,
       creator: (results[7]?.result as Address) || '0x0000000000000000000000000000000000000000',
-      treasuryWallet: (results[8]?.result as Address) || '0x0000000000000000000000000000000000000000',
-      totalReflections: (results[9]?.result as bigint) || 0n,
-      totalYieldDistributed: (results[10]?.result as bigint) || 0n,
-      userPendingReflections: userAddress ? ((results[11]?.result as bigint) || 0n) : undefined,
-      userPendingYield: userAddress ? ((results[12]?.result as bigint) || 0n) : undefined,
+      treasuryWallet,
+      totalReflections: (results[8]?.result as bigint) || 0n,
+      pair: (results[9]?.result as Address) || '0x0000000000000000000000000000000000000000',
     };
   }, [results, isForged, tokenAddress, userAddress]);
 

@@ -8,172 +8,43 @@ import { useMemo } from 'react';
 // =====================================================================
 // THE DIGITAL FORGE - Your Holdings Panel
 // Shows connected user's balance, rewards, and tax mechanism breakdown
+// V3-compatible: array-based getters for treasury/yield/support tokens
 // =====================================================================
 
 const TOKEN_ABI = [
-  {
-    inputs: [{ name: 'account', type: 'address' }],
-    name: 'balanceOf',
-    outputs: [{ type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'totalSupply',
-    outputs: [{ type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'decimals',
-    outputs: [{ type: 'uint8' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'symbol',
-    outputs: [{ type: 'string' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
+  { inputs: [{ name: 'account', type: 'address' }], name: 'balanceOf', outputs: [{ type: 'uint256' }], stateMutability: 'view', type: 'function' },
+  { inputs: [], name: 'totalSupply', outputs: [{ type: 'uint256' }], stateMutability: 'view', type: 'function' },
+  { inputs: [], name: 'decimals', outputs: [{ type: 'uint8' }], stateMutability: 'view', type: 'function' },
+  { inputs: [], name: 'symbol', outputs: [{ type: 'string' }], stateMutability: 'view', type: 'function' },
   // Mechanism shares
-  {
-    inputs: [],
-    name: 'treasuryShare',
-    outputs: [{ type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'burnShare',
-    outputs: [{ type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'reflectionShare',
-    outputs: [{ type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'liquidityShare',
-    outputs: [{ type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'yieldShare',
-    outputs: [{ type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'supportShare',
-    outputs: [{ type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  // Mechanism addresses
-  {
-    inputs: [],
-    name: 'treasuryWallet',
-    outputs: [{ type: 'address' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'yieldToken',
-    outputs: [{ type: 'address' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'supportToken',
-    outputs: [{ type: 'address' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'lpPair',
-    outputs: [{ type: 'address' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  // Contract-level pending amounts
-  {
-    inputs: [],
-    name: 'pendingTreasury',
-    outputs: [{ type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'pendingBurn',
-    outputs: [{ type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'pendingYield',
-    outputs: [{ type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'creator',
-    outputs: [{ type: 'address' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  // Buy/Sell tax
-  {
-    inputs: [],
-    name: 'buyTax',
-    outputs: [{ type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'sellTax',
-    outputs: [{ type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
+  { inputs: [], name: 'treasuryShare', outputs: [{ type: 'uint256' }], stateMutability: 'view', type: 'function' },
+  { inputs: [], name: 'burnShare', outputs: [{ type: 'uint256' }], stateMutability: 'view', type: 'function' },
+  { inputs: [], name: 'reflectionShare', outputs: [{ type: 'uint256' }], stateMutability: 'view', type: 'function' },
+  { inputs: [], name: 'liquidityShare', outputs: [{ type: 'uint256' }], stateMutability: 'view', type: 'function' },
+  { inputs: [], name: 'yieldShare', outputs: [{ type: 'uint256' }], stateMutability: 'view', type: 'function' },
+  { inputs: [], name: 'supportShare', outputs: [{ type: 'uint256' }], stateMutability: 'view', type: 'function' },
+  // Array-based getters (V2/V3)
+  { inputs: [{ type: 'uint256' }], name: 'treasuryWallets', outputs: [{ name: 'addr', type: 'address' }, { name: 'share', type: 'uint256' }], stateMutability: 'view', type: 'function' },
+  { inputs: [{ type: 'uint256' }], name: 'yieldTokens', outputs: [{ name: 'addr', type: 'address' }, { name: 'share', type: 'uint256' }], stateMutability: 'view', type: 'function' },
+  { inputs: [{ type: 'uint256' }], name: 'supportTokens', outputs: [{ name: 'addr', type: 'address' }, { name: 'share', type: 'uint256' }], stateMutability: 'view', type: 'function' },
+  // DEX
+  { inputs: [], name: 'pair', outputs: [{ type: 'address' }], stateMutability: 'view', type: 'function' },
+  // Pending amounts
+  { inputs: [], name: 'pendingTreasury', outputs: [{ type: 'uint256' }], stateMutability: 'view', type: 'function' },
+  { inputs: [], name: 'pendingBurn', outputs: [{ type: 'uint256' }], stateMutability: 'view', type: 'function' },
+  { inputs: [], name: 'pendingYield', outputs: [{ type: 'uint256' }], stateMutability: 'view', type: 'function' },
+  // Tax rates
+  { inputs: [], name: 'buyTax', outputs: [{ type: 'uint256' }], stateMutability: 'view', type: 'function' },
+  { inputs: [], name: 'sellTax', outputs: [{ type: 'uint256' }], stateMutability: 'view', type: 'function' },
+  { inputs: [], name: 'owner', outputs: [{ type: 'address' }], stateMutability: 'view', type: 'function' },
 ] as const;
 
-// ERC20 name/symbol for reward tokens
 const ERC20_META_ABI = [
-  {
-    inputs: [],
-    name: 'name',
-    outputs: [{ type: 'string' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'symbol',
-    outputs: [{ type: 'string' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
+  { inputs: [], name: 'name', outputs: [{ type: 'string' }], stateMutability: 'view', type: 'function' },
+  { inputs: [], name: 'symbol', outputs: [{ type: 'string' }], stateMutability: 'view', type: 'function' },
 ] as const;
+
+const MAX_ARRAY_READ = 6;
 
 interface YourHoldingsPanelProps {
   tokenAddress?: Address;
@@ -188,38 +59,54 @@ export function YourHoldingsPanel({
 }: YourHoldingsPanelProps) {
   const { isConnected, address: userAddress } = useAccount();
 
-  // Build contracts for reading all token data
+  // Phase 1: Core token data
   const contracts = useMemo(() => {
     if (!tokenAddress || !userAddress) return [];
-
     return [
-      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'balanceOf' as const, args: [userAddress] },
-      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'totalSupply' as const },
-      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'treasuryShare' as const },
-      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'burnShare' as const },
-      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'reflectionShare' as const },
-      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'liquidityShare' as const },
-      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'yieldShare' as const },
-      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'supportShare' as const },
-      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'treasuryWallet' as const },
-      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'yieldToken' as const },
-      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'supportToken' as const },
-      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'lpPair' as const },
-      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'pendingTreasury' as const },
-      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'pendingBurn' as const },
-      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'pendingYield' as const },
-      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'creator' as const },
-      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'buyTax' as const },
-      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'sellTax' as const },
+      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'balanceOf' as const, args: [userAddress] }, // 0
+      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'totalSupply' as const },                    // 1
+      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'treasuryShare' as const },                   // 2
+      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'burnShare' as const },                       // 3
+      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'reflectionShare' as const },                 // 4
+      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'liquidityShare' as const },                  // 5
+      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'yieldShare' as const },                      // 6
+      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'supportShare' as const },                    // 7
+      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'pair' as const },                            // 8
+      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'pendingTreasury' as const },                 // 9
+      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'pendingBurn' as const },                     // 10
+      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'pendingYield' as const },                    // 11
+      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'owner' as const },                           // 12
+      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'buyTax' as const },                          // 13
+      { address: tokenAddress, abi: TOKEN_ABI, functionName: 'sellTax' as const },                         // 14
     ];
   }, [tokenAddress, userAddress]);
+
+  // Phase 2: Array entries (try reading first 6 of each)
+  const arrayContracts = useMemo(() => {
+    if (!tokenAddress) return [];
+    const calls: unknown[] = [];
+    for (let i = 0; i < MAX_ARRAY_READ; i++) {
+      calls.push({ address: tokenAddress, abi: TOKEN_ABI, functionName: 'treasuryWallets' as const, args: [BigInt(i)] });
+    }
+    for (let i = 0; i < MAX_ARRAY_READ; i++) {
+      calls.push({ address: tokenAddress, abi: TOKEN_ABI, functionName: 'yieldTokens' as const, args: [BigInt(i)] });
+    }
+    for (let i = 0; i < MAX_ARRAY_READ; i++) {
+      calls.push({ address: tokenAddress, abi: TOKEN_ABI, functionName: 'supportTokens' as const, args: [BigInt(i)] });
+    }
+    return calls;
+  }, [tokenAddress]);
 
   const { data: results, isLoading } = useReadContracts({
     contracts: contracts as readonly unknown[],
     query: { enabled: contracts.length > 0 },
   });
 
-  // Parse results
+  const { data: arrayResults } = useReadContracts({
+    contracts: arrayContracts as readonly unknown[],
+    query: { enabled: arrayContracts.length > 0 },
+  });
+
   const data = useMemo(() => {
     if (!results) return null;
 
@@ -231,16 +118,43 @@ export function YourHoldingsPanel({
     const liquidityShare = (results[5]?.result as bigint) || 0n;
     const yieldShare = (results[6]?.result as bigint) || 0n;
     const supportShare = (results[7]?.result as bigint) || 0n;
-    const treasuryWallet = (results[8]?.result as Address) || null;
-    const yieldToken = (results[9]?.result as Address) || null;
-    const supportToken = (results[10]?.result as Address) || null;
-    const lpPair = (results[11]?.result as Address) || null;
-    const pendingTreasury = (results[12]?.result as bigint) || 0n;
-    const pendingBurn = (results[13]?.result as bigint) || 0n;
-    const contractPendingYield = (results[14]?.result as bigint) || 0n;
-    const tokenOwner = (results[15]?.result as Address) || null;
-    const buyTax = (results[16]?.result as bigint) || 0n;
-    const sellTax = (results[17]?.result as bigint) || 0n;
+    const lpPair = (results[8]?.result as Address) || null;
+    const pendingTreasury = (results[9]?.result as bigint) || 0n;
+    const pendingBurn = (results[10]?.result as bigint) || 0n;
+    const contractPendingYield = (results[11]?.result as bigint) || 0n;
+    const tokenOwner = (results[12]?.result as Address) || null;
+    const buyTax = (results[13]?.result as bigint) || 0n;
+    const sellTax = (results[14]?.result as bigint) || 0n;
+
+    // Parse arrays
+    const ZERO = '0x0000000000000000000000000000000000000000';
+    const treasuryWallets: { addr: Address; share: bigint }[] = [];
+    const yieldTokenAddrs: { addr: Address; share: bigint }[] = [];
+    const supportTokenAddrs: { addr: Address; share: bigint }[] = [];
+
+    if (arrayResults) {
+      for (let i = 0; i < MAX_ARRAY_READ; i++) {
+        const entry = arrayResults[i];
+        if (entry?.status === 'success' && entry.result) {
+          const [addr, share] = entry.result as [Address, bigint];
+          if (addr && addr !== ZERO) treasuryWallets.push({ addr, share });
+        } else break;
+      }
+      for (let i = 0; i < MAX_ARRAY_READ; i++) {
+        const entry = arrayResults[MAX_ARRAY_READ + i];
+        if (entry?.status === 'success' && entry.result) {
+          const [addr, share] = entry.result as [Address, bigint];
+          if (addr && addr !== ZERO) yieldTokenAddrs.push({ addr, share });
+        } else break;
+      }
+      for (let i = 0; i < MAX_ARRAY_READ; i++) {
+        const entry = arrayResults[MAX_ARRAY_READ * 2 + i];
+        if (entry?.status === 'success' && entry.result) {
+          const [addr, share] = entry.result as [Address, bigint];
+          if (addr && addr !== ZERO) supportTokenAddrs.push({ addr, share });
+        } else break;
+      }
+    }
 
     const ownershipPercent = totalSupply > 0n
       ? Number((balance * 10000n) / totalSupply) / 100
@@ -256,9 +170,9 @@ export function YourHoldingsPanel({
       liquidityShare,
       yieldShare,
       supportShare,
-      treasuryWallet,
-      yieldToken,
-      supportToken,
+      treasuryWallets,
+      yieldTokenAddrs,
+      supportTokenAddrs,
       lpPair,
       pendingTreasury,
       pendingBurn,
@@ -267,29 +181,26 @@ export function YourHoldingsPanel({
       buyTax,
       sellTax,
     };
-  }, [results]);
+  }, [results, arrayResults]);
 
-  // Resolve yield token and support token names
+  // Resolve yield/support token names from first entries
   const rewardTokenContracts = useMemo(() => {
     const calls: unknown[] = [];
-    const yieldAddr = data?.yieldToken;
-    const supportAddr = data?.supportToken;
-    const zero = '0x0000000000000000000000000000000000000000';
-
-    if (yieldAddr && yieldAddr !== zero) {
+    const ZERO = '0x0000000000000000000000000000000000000000';
+    if (data?.yieldTokenAddrs?.[0]?.addr && data.yieldTokenAddrs[0].addr !== ZERO) {
       calls.push(
-        { address: yieldAddr, abi: ERC20_META_ABI, functionName: 'name' as const },
-        { address: yieldAddr, abi: ERC20_META_ABI, functionName: 'symbol' as const },
+        { address: data.yieldTokenAddrs[0].addr, abi: ERC20_META_ABI, functionName: 'name' as const },
+        { address: data.yieldTokenAddrs[0].addr, abi: ERC20_META_ABI, functionName: 'symbol' as const },
       );
     }
-    if (supportAddr && supportAddr !== zero) {
+    if (data?.supportTokenAddrs?.[0]?.addr && data.supportTokenAddrs[0].addr !== ZERO) {
       calls.push(
-        { address: supportAddr, abi: ERC20_META_ABI, functionName: 'name' as const },
-        { address: supportAddr, abi: ERC20_META_ABI, functionName: 'symbol' as const },
+        { address: data.supportTokenAddrs[0].addr, abi: ERC20_META_ABI, functionName: 'name' as const },
+        { address: data.supportTokenAddrs[0].addr, abi: ERC20_META_ABI, functionName: 'symbol' as const },
       );
     }
     return calls;
-  }, [data?.yieldToken, data?.supportToken]);
+  }, [data?.yieldTokenAddrs, data?.supportTokenAddrs]);
 
   const { data: rewardTokenResults } = useReadContracts({
     contracts: rewardTokenContracts as readonly unknown[],
@@ -299,9 +210,9 @@ export function YourHoldingsPanel({
   const rewardTokenMeta = useMemo(() => {
     if (!rewardTokenResults) return { yieldName: null, yieldSymbol: null, supportName: null, supportSymbol: null };
 
-    const zero = '0x0000000000000000000000000000000000000000';
-    const hasYield = data?.yieldToken && data.yieldToken !== zero;
-    const hasSupport = data?.supportToken && data.supportToken !== zero;
+    const ZERO = '0x0000000000000000000000000000000000000000';
+    const hasYield = data?.yieldTokenAddrs?.[0]?.addr && data.yieldTokenAddrs[0].addr !== ZERO;
+    const hasSupport = data?.supportTokenAddrs?.[0]?.addr && data.supportTokenAddrs[0].addr !== ZERO;
 
     let idx = 0;
     let yieldName: string | null = null;
@@ -320,7 +231,7 @@ export function YourHoldingsPanel({
     }
 
     return { yieldName, yieldSymbol, supportName, supportSymbol };
-  }, [rewardTokenResults, data?.yieldToken, data?.supportToken]);
+  }, [rewardTokenResults, data?.yieldTokenAddrs, data?.supportTokenAddrs]);
 
   const formatAmount = (amount: bigint | undefined, decimals: number = 18): string => {
     if (!amount || amount === 0n) return '0';
@@ -332,8 +243,6 @@ export function YourHoldingsPanel({
     return num.toFixed(4);
   };
 
-  // Show shares as they were SET: basis points / 100 = percentage
-  // e.g. treasuryShare=4000 -> "40%"
   const formatShare = (share: bigint | undefined): string => {
     if (!share || share === 0n) return '0%';
     return (Number(share) / 100).toFixed(1) + '%';
@@ -449,7 +358,7 @@ export function YourHoldingsPanel({
         </div>
       )}
 
-      {/* Tax Distribution Mechanisms — shown as the raw share percentages */}
+      {/* Tax Distribution Mechanisms */}
       {hasMechanisms && (
         <div className="p-4 border-b border-gray-800">
           <h4 className="text-[10px] text-gray-400 font-rajdhani uppercase mb-3 flex items-center gap-1.5">
@@ -461,7 +370,7 @@ export function YourHoldingsPanel({
               <MechanismRow
                 label="Treasury"
                 share={formatShare(data.treasuryShare)}
-                address={data.treasuryWallet}
+                addresses={data.treasuryWallets}
                 color="cyan"
               />
             )}
@@ -469,7 +378,7 @@ export function YourHoldingsPanel({
               <MechanismRow
                 label="Burn"
                 share={formatShare(data.burnShare)}
-                address={null}
+                addresses={[]}
                 color="red"
                 description="Tokens burned permanently"
               />
@@ -478,7 +387,7 @@ export function YourHoldingsPanel({
               <MechanismRow
                 label="Reflection"
                 share={formatShare(data.reflectionShare)}
-                address={null}
+                addresses={[]}
                 color="green"
                 description="Distributed to all holders"
               />
@@ -487,7 +396,7 @@ export function YourHoldingsPanel({
               <MechanismRow
                 label="Liquidity"
                 share={formatShare(data.liquidityShare)}
-                address={data.lpPair}
+                addresses={data.lpPair ? [{ addr: data.lpPair, share: 10000n }] : []}
                 color="blue"
                 description="Added to LP automatically"
               />
@@ -496,9 +405,9 @@ export function YourHoldingsPanel({
               <RewardTokenRow
                 label="Yield Rewards"
                 share={formatShare(data.yieldShare)}
-                tokenAddress={data.yieldToken}
-                tokenName={rewardTokenMeta.yieldName}
-                tokenSymbol={rewardTokenMeta.yieldSymbol}
+                tokens={data.yieldTokenAddrs}
+                firstName={rewardTokenMeta.yieldName}
+                firstSymbol={rewardTokenMeta.yieldSymbol}
                 color="yellow"
               />
             )}
@@ -506,9 +415,9 @@ export function YourHoldingsPanel({
               <RewardTokenRow
                 label="Support Burns"
                 share={formatShare(data.supportShare)}
-                tokenAddress={data.supportToken}
-                tokenName={rewardTokenMeta.supportName}
-                tokenSymbol={rewardTokenMeta.supportSymbol}
+                tokens={data.supportTokenAddrs}
+                firstName={rewardTokenMeta.supportName}
+                firstSymbol={rewardTokenMeta.supportSymbol}
                 color="purple"
               />
             )}
@@ -564,16 +473,16 @@ export function YourHoldingsPanel({
   );
 }
 
-// Standard mechanism row (Treasury, Burn, Reflection, Liquidity)
+// Mechanism row — supports multiple addresses
 interface MechanismRowProps {
   label: string;
   share: string;
-  address: Address | null;
+  addresses: { addr: Address; share: bigint }[];
   color: 'cyan' | 'red' | 'green' | 'blue' | 'yellow' | 'purple';
   description?: string;
 }
 
-function MechanismRow({ label, share, address, color, description }: MechanismRowProps) {
+function MechanismRow({ label, share, addresses, color, description }: MechanismRowProps) {
   const colorClasses = {
     cyan: 'text-cyan-400 border-cyan-500/20 bg-cyan-500/5',
     red: 'text-red-400 border-red-500/20 bg-red-500/5',
@@ -583,108 +492,116 @@ function MechanismRow({ label, share, address, color, description }: MechanismRo
     purple: 'text-purple-400 border-purple-500/20 bg-purple-500/5',
   };
 
-  const isZero = !address || address === '0x0000000000000000000000000000000000000000';
-
   return (
-    <div className={`flex items-center justify-between py-2 px-3 rounded-lg border ${colorClasses[color]}`}>
-      <div>
-        <div className="flex items-center gap-2">
-          <span className={`text-sm font-rajdhani font-semibold ${colorClasses[color].split(' ')[0]}`}>{label}</span>
-          <span className="text-sm font-mono font-bold text-white">{share}</span>
+    <div className={`rounded-lg border p-2 px-3 ${colorClasses[color]}`}>
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className={`text-sm font-rajdhani font-semibold ${colorClasses[color].split(' ')[0]}`}>{label}</span>
+            <span className="text-sm font-mono font-bold text-white">{share}</span>
+          </div>
+          {description && (
+            <p className="text-[9px] text-gray-500 font-rajdhani mt-0.5">{description}</p>
+          )}
         </div>
-        {description && (
-          <p className="text-[9px] text-gray-500 font-rajdhani mt-0.5">{description}</p>
+        {addresses.length === 1 && (
+          <a
+            href={`https://scan.pulsechain.com/address/${addresses[0].addr}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-cyan-400 transition-colors font-mono"
+          >
+            {addresses[0].addr.slice(0, 6)}...{addresses[0].addr.slice(-4)}
+            <ExternalLink size={9} />
+          </a>
         )}
       </div>
-      {!isZero && address && (
-        <a
-          href={`https://scan.pulsechain.com/address/${address}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-cyan-400 transition-colors font-mono"
-        >
-          {address.slice(0, 6)}...{address.slice(-4)}
-          <ExternalLink size={9} />
-        </a>
+      {addresses.length > 1 && (
+        <div className="mt-1 space-y-1">
+          {addresses.map((a) => (
+            <a
+              key={a.addr}
+              href={`https://scan.pulsechain.com/address/${a.addr}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between text-[10px] text-gray-500 hover:text-cyan-400 transition-colors font-mono"
+            >
+              <span>{a.addr.slice(0, 6)}...{a.addr.slice(-4)}</span>
+              <span>{(Number(a.share) / 100).toFixed(1)}%</span>
+            </a>
+          ))}
+        </div>
       )}
     </div>
   );
 }
 
-// Reward Token Row — shows token symbol and name prominently
+// Reward Token Row — shows token info for yield/support arrays
 interface RewardTokenRowProps {
   label: string;
   share: string;
-  tokenAddress: Address | null;
-  tokenName: string | null;
-  tokenSymbol: string | null;
+  tokens: { addr: Address; share: bigint }[];
+  firstName: string | null;
+  firstSymbol: string | null;
   color: 'yellow' | 'purple';
 }
 
-function RewardTokenRow({ label, share, tokenAddress, tokenName, tokenSymbol, color }: RewardTokenRowProps) {
+function RewardTokenRow({ label, share, tokens, firstName, firstSymbol, color }: RewardTokenRowProps) {
   const colorClasses = {
-    yellow: {
-      text: 'text-yellow-400',
-      border: 'border-yellow-500/30',
-      bg: 'bg-yellow-500/10',
-      iconBg: 'bg-yellow-500/20',
-    },
-    purple: {
-      text: 'text-purple-400',
-      border: 'border-purple-500/30',
-      bg: 'bg-purple-500/10',
-      iconBg: 'bg-purple-500/20',
-    },
+    yellow: { text: 'text-yellow-400', border: 'border-yellow-500/30', bg: 'bg-yellow-500/10', iconBg: 'bg-yellow-500/20' },
+    purple: { text: 'text-purple-400', border: 'border-purple-500/30', bg: 'bg-purple-500/10', iconBg: 'bg-purple-500/20' },
   };
 
   const c = colorClasses[color];
-  const isZero = !tokenAddress || tokenAddress === '0x0000000000000000000000000000000000000000';
 
   return (
     <div className={`rounded-lg border ${c.border} ${c.bg} p-3`}>
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <div className={`w-7 h-7 rounded-full ${c.iconBg} flex items-center justify-center`}>
-            {color === 'yellow' ? (
-              <Zap size={13} className={c.text} />
-            ) : (
-              <Gift size={13} className={c.text} />
-            )}
+            {color === 'yellow' ? <Zap size={13} className={c.text} /> : <Gift size={13} className={c.text} />}
           </div>
           <div>
             <span className={`text-sm font-rajdhani font-semibold ${c.text}`}>{label}</span>
             <span className="text-sm font-mono font-bold text-white ml-2">{share}</span>
+            {tokens.length > 1 && (
+              <span className="text-[10px] text-gray-500 ml-2">({tokens.length} tokens)</span>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Reward Token Details */}
-      {!isZero && (
-        <div className="flex items-center justify-between mt-1 pt-2 border-t border-gray-800/50">
-          <div className="flex items-center gap-2">
-            <div className={`w-5 h-5 rounded-full ${c.iconBg} flex items-center justify-center`}>
-              <span className={`text-[8px] font-bold ${c.text}`}>
-                {tokenSymbol?.slice(0, 2) || '??'}
-              </span>
+      {tokens.length > 0 && (
+        <div className="space-y-1 mt-1 pt-2 border-t border-gray-800/50">
+          {tokens.map((t, idx) => (
+            <div key={t.addr} className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className={`w-5 h-5 rounded-full ${c.iconBg} flex items-center justify-center`}>
+                  <span className={`text-[8px] font-bold ${c.text}`}>
+                    {idx === 0 && firstSymbol ? firstSymbol.slice(0, 2) : '??'}
+                  </span>
+                </div>
+                <div>
+                  {idx === 0 && firstSymbol && (
+                    <span className={`text-xs font-mono font-bold ${c.text}`}>${firstSymbol}</span>
+                  )}
+                  {idx === 0 && firstName && (
+                    <span className="text-[10px] text-gray-500 font-rajdhani ml-1.5">{firstName}</span>
+                  )}
+                </div>
+              </div>
+              <a
+                href={`https://scan.pulsechain.com/token/${t.addr}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-cyan-400 transition-colors font-mono"
+              >
+                {t.addr.slice(0, 6)}...{t.addr.slice(-4)}
+                <span className="text-gray-600">{(Number(t.share) / 100).toFixed(1)}%</span>
+                <ExternalLink size={9} />
+              </a>
             </div>
-            <div>
-              {tokenSymbol && (
-                <span className={`text-xs font-mono font-bold ${c.text}`}>${tokenSymbol}</span>
-              )}
-              {tokenName && (
-                <span className="text-[10px] text-gray-500 font-rajdhani ml-1.5">{tokenName}</span>
-              )}
-            </div>
-          </div>
-          <a
-            href={`https://scan.pulsechain.com/token/${tokenAddress}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-cyan-400 transition-colors font-mono"
-          >
-            {tokenAddress!.slice(0, 6)}...{tokenAddress!.slice(-4)}
-            <ExternalLink size={9} />
-          </a>
+          ))}
         </div>
       )}
     </div>

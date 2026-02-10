@@ -235,8 +235,8 @@ export function useForgeToken() {
     // Each address entry has its own tax % and split toggle
     // Calculate totals from all address entries
 
-    const getEntryBuyTax = (e: AddressEntry) => e.split ? e.share : e.share / 2;
-    const getEntrySellTax = (e: AddressEntry) => e.split ? e.sellShare : e.share / 2;
+    const getEntryBuyTax = (e: AddressEntry) => e.split ? e.share : e.share;
+    const getEntrySellTax = (e: AddressEntry) => e.split ? e.sellShare : e.share;
 
     // Sum from all address entries
     const sumEntries = (entries: AddressEntry[] | undefined) => {
@@ -254,8 +254,8 @@ export function useForgeToken() {
     const supportTotals = sumEntries(formData.supportTokens);
 
     // Reflection uses legacy fields (no addresses)
-    const reflectionBuy = formData.reflectionSplit ? formData.reflectionShare : (formData.reflectionShare || 0) / 2;
-    const reflectionSell = formData.reflectionSplit ? formData.reflectionShareSell : (formData.reflectionShare || 0) / 2;
+    const reflectionBuy = formData.reflectionSplit ? formData.reflectionShare : (formData.reflectionShare || 0);
+    const reflectionSell = formData.reflectionSplit ? formData.reflectionShareSell : (formData.reflectionShare || 0);
 
     // Calculate total BUY and SELL taxes
     const totalBuyAllocated = treasuryTotals.buy + burnTotals.buy + reflectionBuy +
@@ -263,26 +263,63 @@ export function useForgeToken() {
     const totalSellAllocated = treasuryTotals.sell + burnTotals.sell + reflectionSell +
                                liquidityTotals.sell + yieldTotals.sell + supportTotals.sell;
 
-    // Calculate shares as portion of total (must sum to 10000)
-    // For contract: shares represent portion of tax going to each mechanism
-    const calcShare = (mechanismBuyTax: number) => {
-      if (totalBuyAllocated <= 0) return 0n;
-      return BigInt(Math.round((mechanismBuyTax / totalBuyAllocated) * 10000));
+    // Calculate shares as portion of total (must sum to exactly 10000)
+    // Use largest-remainder method to prevent rounding drift
+    const calcShares = () => {
+      if (totalBuyAllocated <= 0) {
+        return { treasury: 0n, burn: 0n, reflection: 0n, liquidity: 0n, yield: 0n, support: 0n };
+      }
+
+      const mechanisms = [
+        { key: 'treasury', tax: treasuryTotals.buy },
+        { key: 'burn', tax: burnTotals.buy },
+        { key: 'reflection', tax: reflectionBuy },
+        { key: 'liquidity', tax: liquidityTotals.buy },
+        { key: 'yield', tax: yieldTotals.buy },
+        { key: 'support', tax: supportTotals.buy },
+      ];
+
+      // Floor each share, track remainders
+      const entries = mechanisms.map(m => {
+        const exact = (m.tax / totalBuyAllocated) * 10000;
+        const floored = Math.floor(exact);
+        return { key: m.key, floored, remainder: exact - floored };
+      });
+
+      let sum = entries.reduce((s, e) => s + e.floored, 0);
+      // Distribute leftover points to entries with largest remainders
+      const sorted = [...entries].sort((a, b) => b.remainder - a.remainder);
+      let i = 0;
+      while (sum < 10000 && i < sorted.length) {
+        if (sorted[i].remainder > 0) {
+          sorted[i].floored++;
+          sum++;
+        }
+        i++;
+      }
+
+      const result: Record<string, bigint> = {};
+      for (const e of entries) {
+        result[e.key] = BigInt(e.floored);
+      }
+      return result;
     };
+
+    const shares = calcShares();
 
     const config: ForgeTokenConfig = {
       name: formData.name,
       symbol: formData.symbol,
       totalSupply: totalSupplyWei,
       decimals: formData.decimals,
-      buyTax: BigInt(Math.round(totalBuyAllocated * 100)), // Total buy tax in basis points
-      sellTax: BigInt(Math.round(totalSellAllocated * 100)), // Total sell tax in basis points
-      treasuryShare: calcShare(treasuryTotals.buy),
-      burnShare: calcShare(burnTotals.buy),
-      reflectionShare: calcShare(reflectionBuy),
-      liquidityShare: calcShare(liquidityTotals.buy),
-      yieldShare: calcShare(yieldTotals.buy),
-      supportShare: calcShare(supportTotals.buy),
+      buyTax: BigInt(Math.round(totalBuyAllocated * 100)),
+      sellTax: BigInt(Math.round(totalSellAllocated * 100)),
+      treasuryShare: shares.treasury,
+      burnShare: shares.burn,
+      reflectionShare: shares.reflection,
+      liquidityShare: shares.liquidity,
+      yieldShare: shares.yield,
+      supportShare: shares.support,
       treasuryWallets,
       yieldTokens,
       supportTokens,
@@ -365,10 +402,10 @@ export function validateFormData(formData: TokenFormData): { valid: boolean; err
   // - Split mode: buy and sell are entered separately
 
   const getBuyTax = (unifiedShare: number, isSplit: boolean) =>
-    isSplit ? unifiedShare : unifiedShare / 2;
+    isSplit ? unifiedShare : unifiedShare;
 
   const getSellTax = (unifiedShare: number, sellShare: number, isSplit: boolean) =>
-    isSplit ? sellShare : unifiedShare / 2;
+    isSplit ? sellShare : unifiedShare;
 
   const totalBuyTax =
     getBuyTax(formData.treasuryShare, formData.treasurySplit) +
