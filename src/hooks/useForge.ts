@@ -165,10 +165,19 @@ export function useForgeToken() {
     hash,
   });
 
-  // Extract token address from transaction logs
-  const createdTokenAddress = receipt?.logs?.[0]?.topics?.[2]
-    ? ('0x' + receipt.logs[0].topics[2].slice(26)) as Address
-    : undefined;
+  // Extract token address from TokenForged event (emitted by factory, NOT the first log)
+  // logs[0] is typically the Transfer event from _mint(), not TokenForged.
+  // Filter by factory address to find the correct event.
+  const createdTokenAddress = (() => {
+    if (!receipt?.logs) return undefined;
+    const forgedLog = receipt.logs.find(
+      (log) => log.address.toLowerCase() === THE_DIGITAL_FORGE_ADDRESS.toLowerCase()
+    );
+    if (forgedLog?.topics?.[2]) {
+      return ('0x' + forgedLog.topics[2].slice(26)) as Address;
+    }
+    return undefined;
+  })();
 
   // Auto-renounce ownership after successful creation if requested
   useEffect(() => {
