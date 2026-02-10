@@ -19,7 +19,7 @@ interface DexScreenerChartProps {
 export function DexScreenerChart({
   tokenAddress,
   chainId = 'pulsechain',
-  height = 400,
+  height = 600,
 }: DexScreenerChartProps) {
   const [expanded, setExpanded] = useState(true);
 

@@ -15,9 +15,10 @@ import { SwapWidget } from '@/components/dashboard/SwapWidget';
 import { TransactionFeed } from '@/components/dashboard/TransactionFeed';
 import { LiveChat } from '@/components/dashboard/LiveChat';
 import { MessageBoard } from '@/components/dashboard/MessageBoard';
+import { BuybackTokensPanel } from '@/components/dashboard/BuybackTokensPanel';
 import { useTaxTokenData, isHiddenToken } from '@/hooks/useForgeTokens';
-import { getTokenMetadata, type StoredTokenMetadata } from '@/lib/tokenMetadataStore';
-import { resolveTokenImage } from '@/lib/ipfs';
+import { getTokenMetadata, saveTokenMetadata, type StoredTokenMetadata } from '@/lib/tokenMetadataStore';
+import { resolveTokenImage, uploadToIPFS } from '@/lib/ipfs';
 import { FORGED_TOKEN_ABI } from '@/lib/contracts';
 import { type Address } from 'viem';
 import {
@@ -31,8 +32,10 @@ import {
   Globe,
   Power,
   Settings,
+  Camera,
+  Loader2,
 } from 'lucide-react';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 // =====================================================================
 // THE DIGITAL FORGE - Token Dashboard
@@ -79,9 +82,29 @@ export default function TokenPage() {
     });
   }, [tokenAddress, writeEnableTrading]);
 
+  // Platform token description overrides (for tokens without on-chain metadata)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const PLATFORM_TOKEN_OVERRIDES: Record<string, { description: string }> = {
+    '0x57cd040d5d3bbe3a6533e4724006073e613a6742': {
+      description: 'Paisley Protocol Platform Rewarder Token — THE DIGITAL FORGE flagship fee-on-transfer token. 6.25% buy/sell tax automatically buys back DAI, WBTC, PCOCK, ZERO, and TREASURY BILL, distributing rewards to holders and routing PLS to the treasury. Hold to earn.',
+    },
+  };
+
   useEffect(() => {
     const stored = getTokenMetadata(tokenAddress);
     if (stored) setMetadata(stored);
+
+    // Apply platform override if no stored description
+    const override = PLATFORM_TOKEN_OVERRIDES[tokenAddress.toLowerCase()];
+    if (override && (!stored || !stored.description)) {
+      setMetadata((prev) => ({
+        ...prev,
+        imageUri: prev?.imageUri || '',
+        createdAt: prev?.createdAt || Date.now(),
+        description: override.description,
+      }));
+    }
+
     const resolved = resolveTokenImage(tokenAddress, stored?.imageUri);
     if (resolved) setImageUrl(resolved.url);
   }, [tokenAddress]);
@@ -105,6 +128,31 @@ export default function TokenPage() {
   };
 
   const isTaxToken = tokenData?.tokenType === 'FORGE';
+
+  // Image replacement for token owner
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+
+  const handleImageReplace = useCallback(async (file: File) => {
+    if (!file || !file.type.startsWith('image/') || file.size > 5 * 1024 * 1024) return;
+    setIsUploadingImage(true);
+    try {
+      const uri = await uploadToIPFS(file);
+      saveTokenMetadata(tokenAddress, {
+        imageUri: uri,
+        description: metadata?.description,
+        website: metadata?.website,
+        twitter: metadata?.twitter,
+        telegram: metadata?.telegram,
+      });
+      const resolved = resolveTokenImage(tokenAddress, uri);
+      if (resolved) setImageUrl(resolved.url);
+    } catch (err) {
+      console.error('Image upload failed:', err);
+    } finally {
+      setIsUploadingImage(false);
+    }
+  }, [tokenAddress, metadata]);
 
   if (hidden) {
     return (
@@ -219,18 +267,44 @@ export default function TokenPage() {
                 {/* Token Header — Big Image + Info */}
                 <div className="glass-card rounded-xl border border-cyan-500/20 overflow-hidden p-5">
                   <div className="flex items-start gap-5">
-                    {/* BIG Token Image */}
-                    {imageUrl ? (
-                      <div className="w-24 h-24 md:w-32 md:h-32 rounded-xl overflow-hidden border-2 border-cyan-500/30 flex-shrink-0 shadow-[0_0_20px_rgba(0,240,255,0.15)]">
+                    {/* BIG Token Image — Owner can click to replace */}
+                    <input
+                      ref={imageInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        if (e.target.files?.[0]) handleImageReplace(e.target.files[0]);
+                      }}
+                    />
+                    <div
+                      className={`relative w-24 h-24 md:w-32 md:h-32 rounded-xl overflow-hidden border-2 flex-shrink-0 group ${
+                        imageUrl ? 'border-cyan-500/30 shadow-[0_0_20px_rgba(0,240,255,0.15)]' : 'border-cyan-500/20'
+                      } ${isOwner ? 'cursor-pointer' : ''}`}
+                      onClick={() => { if (isOwner) imageInputRef.current?.click(); }}
+                    >
+                      {imageUrl ? (
                         <img src={imageUrl} alt={tokenData?.name} className="w-full h-full object-cover" onError={() => setImageUrl(null)} />
-                      </div>
-                    ) : (
-                      <div className="w-24 h-24 md:w-32 md:h-32 rounded-xl bg-gradient-to-br from-cyan-500/20 to-pink-500/20 flex items-center justify-center flex-shrink-0 border-2 border-cyan-500/20">
-                        <span className="font-orbitron font-bold text-4xl text-cyan-400">
-                          {tokenData?.symbol?.slice(0, 2) || '??'}
-                        </span>
-                      </div>
-                    )}
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-cyan-500/20 to-pink-500/20 flex items-center justify-center">
+                          <span className="font-orbitron font-bold text-4xl text-cyan-400">
+                            {tokenData?.symbol?.slice(0, 2) || '??'}
+                          </span>
+                        </div>
+                      )}
+                      {/* Owner edit overlay */}
+                      {isOwner && !isUploadingImage && (
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1">
+                          <Camera className="w-6 h-6 text-cyan-400" />
+                          <span className="text-[10px] text-cyan-400 font-rajdhani font-semibold">Change Image</span>
+                        </div>
+                      )}
+                      {isUploadingImage && (
+                        <div className="absolute inset-0 bg-black/80 flex items-center justify-center">
+                          <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
+                        </div>
+                      )}
+                    </div>
 
                     {/* Token Info */}
                     <div className="flex-1 min-w-0">
@@ -325,7 +399,7 @@ export default function TokenPage() {
 
                 {/* DexScreener Chart — starts collapsed, user clicks to expand */}
                 <ErrorBoundary fallbackLabel="Chart">
-                  <DexScreenerChart tokenAddress={tokenAddress} height={400} />
+                  <DexScreenerChart tokenAddress={tokenAddress} height={600} />
                 </ErrorBoundary>
 
                 {/* Transaction Feed — Buys/Sells */}
@@ -449,6 +523,16 @@ export default function TokenPage() {
                       rewardTokenSymbol="PLS"
                       rewardTokenDecimals={18}
                       onClaimSuccess={() => refetch()}
+                    />
+                  </ErrorBoundary>
+                )}
+
+                {/* Buyback & Reward Tokens Panel */}
+                {isTaxToken && (
+                  <ErrorBoundary fallbackLabel="Tax Tokenomics">
+                    <BuybackTokensPanel
+                      tokenAddress={tokenAddress}
+                      tokenSymbol={tokenData?.symbol}
                     />
                   </ErrorBoundary>
                 )}
