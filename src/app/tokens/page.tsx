@@ -31,7 +31,7 @@ type FilterType = 'all' | 'forge' | 'simple' | 'my-tokens';
 
 export default function TokensPage() {
   const { isConnected, address } = useAccount();
-  const { tokens, totalCount, isLoading } = useForgeTokens(0, 100);
+  const { tokens, isLoading } = useForgeTokens(0, 100);
   const { tokenIds } = useCreatorTokens(address);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -93,27 +93,6 @@ export default function TokensPage() {
               Explore all tokens forged in THE DIGITAL FORGE
             </p>
 
-            {/* Stats Row */}
-            <div className="flex items-center justify-center gap-8 mt-6">
-              <div className="text-center">
-                <p className="text-3xl font-orbitron font-bold text-cyan-400">{totalCount}</p>
-                <p className="text-gray-500 text-sm font-rajdhani">Tokens Forged</p>
-              </div>
-              <div className="w-px h-10 bg-gray-800" />
-              <div className="text-center">
-                <p className="text-3xl font-orbitron font-bold text-purple-400">
-                  {tokens.filter((t) => t.tokenType === 'FORGE').length}
-                </p>
-                <p className="text-gray-500 text-sm font-rajdhani">Tax Tokens</p>
-              </div>
-              <div className="w-px h-10 bg-gray-800" />
-              <div className="text-center">
-                <p className="text-3xl font-orbitron font-bold text-pink-400">
-                  {tokenIds?.length || 0}
-                </p>
-                <p className="text-gray-500 text-sm font-rajdhani">Your Tokens</p>
-              </div>
-            </div>
           </div>
 
           {/* Search and Filter Bar */}
