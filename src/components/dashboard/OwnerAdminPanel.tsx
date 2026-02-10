@@ -2,84 +2,26 @@
 
 import { useState } from 'react';
 import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { type Address } from 'viem';
-import { Settings, Save, AlertCircle, CheckCircle } from 'lucide-react';
+import { type Address, parseEther } from 'viem';
+import { Settings, Save, AlertCircle, CheckCircle, Zap, Shield } from 'lucide-react';
 
-const TOKEN_ADMIN_ABI = [
-  {
-    inputs: [{ name: '_buy', type: 'uint256' }, { name: '_sell', type: 'uint256' }],
-    name: 'setTaxes',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [
-      { name: 't', type: 'uint256' }, { name: 'b', type: 'uint256' },
-      { name: 'r', type: 'uint256' }, { name: 'l', type: 'uint256' },
-      { name: 'y', type: 'uint256' }, { name: 's', type: 'uint256' },
-    ],
-    name: 'setShares',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [{ name: 'addrs', type: 'address[]' }, { name: 'shares', type: 'uint256[]' }],
-    name: 'setTreasuryWallets',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [{ name: 'addrs', type: 'address[]' }, { name: 'shares', type: 'uint256[]' }],
-    name: 'setYieldTokens',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [{ name: 'addrs', type: 'address[]' }, { name: 'shares', type: 'uint256[]' }],
-    name: 'setSupportTokens',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [{ name: '_maxTx', type: 'uint256' }, { name: '_maxWallet', type: 'uint256' }],
-    name: 'setLimits',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [{ name: 'a', type: 'address' }, { name: 'e', type: 'bool' }],
-    name: 'setExcluded',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [{ name: 't', type: 'uint256' }, { name: 'e', type: 'bool' }],
-    name: 'setSwapSettings',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'manualSwap',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'owner',
-    outputs: [{ type: 'address' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
+// ForgedTaxTokenV2 ABI — matches the deployed bytecode on PulseChain
+const TOKEN_V2_ABI = [
+  { inputs: [{ name: '_buy', type: 'uint256' }, { name: '_sell', type: 'uint256' }], name: 'setTaxes', outputs: [], stateMutability: 'nonpayable', type: 'function' },
+  { inputs: [{ name: '_treasury', type: 'uint256' }, { name: '_burn', type: 'uint256' }, { name: '_reflection', type: 'uint256' }, { name: '_liquidity', type: 'uint256' }, { name: '_yield', type: 'uint256' }, { name: '_support', type: 'uint256' }], name: 'setShares', outputs: [], stateMutability: 'nonpayable', type: 'function' },
+  { inputs: [{ name: 'addrs', type: 'address[]' }, { name: 'shares', type: 'uint256[]' }], name: 'setTreasuryWallets', outputs: [], stateMutability: 'nonpayable', type: 'function' },
+  { inputs: [{ name: 'addrs', type: 'address[]' }, { name: 'shares', type: 'uint256[]' }], name: 'setYieldTokens', outputs: [], stateMutability: 'nonpayable', type: 'function' },
+  { inputs: [{ name: 'addrs', type: 'address[]' }, { name: 'shares', type: 'uint256[]' }], name: 'setSupportTokens', outputs: [], stateMutability: 'nonpayable', type: 'function' },
+  { inputs: [{ name: '_maxTx', type: 'uint256' }, { name: '_maxWallet', type: 'uint256' }], name: 'setLimits', outputs: [], stateMutability: 'nonpayable', type: 'function' },
+  { inputs: [{ name: 'account', type: 'address' }, { name: 'excluded', type: 'bool' }], name: 'setExcluded', outputs: [], stateMutability: 'nonpayable', type: 'function' },
+  { inputs: [{ name: 'addr', type: 'address' }, { name: 'isPair', type: 'bool' }], name: 'setPair', outputs: [], stateMutability: 'nonpayable', type: 'function' },
+  { inputs: [{ name: '_router', type: 'address' }], name: 'setRouter', outputs: [], stateMutability: 'nonpayable', type: 'function' },
+  { inputs: [{ name: '_threshold', type: 'uint256' }, { name: '_enabled', type: 'bool' }], name: 'setSwapSettings', outputs: [], stateMutability: 'nonpayable', type: 'function' },
+  { inputs: [], name: 'manualSwap', outputs: [], stateMutability: 'nonpayable', type: 'function' },
+  { inputs: [], name: 'enableTrading', outputs: [], stateMutability: 'nonpayable', type: 'function' },
+  { inputs: [], name: 'rescueETH', outputs: [], stateMutability: 'nonpayable', type: 'function' },
+  { inputs: [{ name: 'token', type: 'address' }, { name: 'amount', type: 'uint256' }], name: 'rescueTokens', outputs: [], stateMutability: 'nonpayable', type: 'function' },
+  { inputs: [{ name: 'newOwner', type: 'address' }], name: 'transferOwnership', outputs: [], stateMutability: 'nonpayable', type: 'function' },
 ] as const;
 
 interface OwnerAdminPanelProps {
@@ -95,10 +37,8 @@ export function OwnerAdminPanel({
   isOwner,
   currentBuyTax,
   currentSellTax,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onSuccess,
 }: OwnerAdminPanelProps) {
-  const [activeTab, setActiveTab] = useState<'taxes' | 'shares' | 'tokens' | 'limits'>('taxes');
+  const [activeTab, setActiveTab] = useState<'taxes' | 'shares' | 'tokens' | 'limits' | 'manual'>('taxes');
 
   // Tax form
   const [buyTax, setBuyTax] = useState(currentBuyTax ? (Number(currentBuyTax) / 100).toString() : '');
@@ -112,12 +52,21 @@ export function OwnerAdminPanel({
   const [yieldShare, setYieldShare] = useState('');
   const [supportShare, setSupportShare] = useState('');
 
-  // Yield tokens form
-  const [yieldTokenAddress, setYieldTokenAddress] = useState('');
+  // Token address forms
+  const [yieldTokenAddresses, setYieldTokenAddresses] = useState('');
+  const [supportTokenAddresses, setSupportTokenAddresses] = useState('');
+  const [treasuryWalletAddresses, setTreasuryWalletAddresses] = useState('');
 
   // Limits form
-  const [maxTxPercent, setMaxTxPercent] = useState('');
-  const [maxWalletPercent, setMaxWalletPercent] = useState('');
+  const [maxTxAmount, setMaxTxAmount] = useState('');
+  const [maxWalletAmount, setMaxWalletAmount] = useState('');
+
+  // Exclusion form
+  const [excludeAddress, setExcludeAddress] = useState('');
+  const [excludeValue, setExcludeValue] = useState(true);
+
+  // Rescue form
+  const [rescueTokenAddr, setRescueTokenAddr] = useState('');
 
   const { data: hash, error, isPending, writeContract, reset } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
@@ -129,7 +78,7 @@ export function OwnerAdminPanel({
     const sellBps = Math.round(parseFloat(sellTax) * 100);
     writeContract({
       address: tokenAddress,
-      abi: TOKEN_ADMIN_ABI,
+      abi: TOKEN_V2_ABI,
       functionName: 'setTaxes',
       args: [BigInt(buyBps), BigInt(sellBps)],
     });
@@ -138,7 +87,7 @@ export function OwnerAdminPanel({
   const handleSetShares = () => {
     writeContract({
       address: tokenAddress,
-      abi: TOKEN_ADMIN_ABI,
+      abi: TOKEN_V2_ABI,
       functionName: 'setShares',
       args: [
         BigInt(treasuryShare || 0),
@@ -151,21 +100,62 @@ export function OwnerAdminPanel({
     });
   };
 
+  const parseAddressShares = (input: string): { addrs: Address[]; shares: bigint[] } => {
+    const addrs = input.split(',').map((a) => a.trim()).filter(Boolean) as Address[];
+    const sharePer = Math.floor(10000 / addrs.length);
+    const shares = addrs.map((_, i) => BigInt(i === 0 ? 10000 - sharePer * (addrs.length - 1) : sharePer));
+    return { addrs, shares };
+  };
+
   const handleSetYieldTokens = () => {
-    if (!yieldTokenAddress) return;
+    if (!yieldTokenAddresses) return;
+    const { addrs, shares } = parseAddressShares(yieldTokenAddresses);
+    writeContract({ address: tokenAddress, abi: TOKEN_V2_ABI, functionName: 'setYieldTokens', args: [addrs, shares] });
+  };
+
+  const handleSetSupportTokens = () => {
+    if (!supportTokenAddresses) return;
+    const { addrs, shares } = parseAddressShares(supportTokenAddresses);
+    writeContract({ address: tokenAddress, abi: TOKEN_V2_ABI, functionName: 'setSupportTokens', args: [addrs, shares] });
+  };
+
+  const handleSetTreasuryWallets = () => {
+    if (!treasuryWalletAddresses) return;
+    const { addrs, shares } = parseAddressShares(treasuryWalletAddresses);
+    writeContract({ address: tokenAddress, abi: TOKEN_V2_ABI, functionName: 'setTreasuryWallets', args: [addrs, shares] });
+  };
+
+  const handleSetLimits = () => {
+    const maxTx = maxTxAmount ? parseEther(maxTxAmount) : 0n;
+    const maxWallet = maxWalletAmount ? parseEther(maxWalletAmount) : 0n;
+    writeContract({ address: tokenAddress, abi: TOKEN_V2_ABI, functionName: 'setLimits', args: [maxTx, maxWallet] });
+  };
+
+  const handleSetExcluded = () => {
+    if (!excludeAddress) return;
     writeContract({
       address: tokenAddress,
-      abi: TOKEN_ADMIN_ABI,
-      functionName: 'setYieldTokens',
-      args: [[yieldTokenAddress as Address], [10000n]],
+      abi: TOKEN_V2_ABI,
+      functionName: 'setExcluded',
+      args: [excludeAddress as Address, excludeValue],
     });
   };
 
   const handleManualSwap = () => {
+    writeContract({ address: tokenAddress, abi: TOKEN_V2_ABI, functionName: 'manualSwap' });
+  };
+
+  const handleRescueETH = () => {
+    writeContract({ address: tokenAddress, abi: TOKEN_V2_ABI, functionName: 'rescueETH' });
+  };
+
+  const handleRescueTokens = () => {
+    if (!rescueTokenAddr) return;
     writeContract({
       address: tokenAddress,
-      abi: TOKEN_ADMIN_ABI,
-      functionName: 'manualSwap',
+      abi: TOKEN_V2_ABI,
+      functionName: 'rescueTokens',
+      args: [rescueTokenAddr as Address, 0n],
     });
   };
 
@@ -180,25 +170,25 @@ export function OwnerAdminPanel({
   return (
     <div className="glass-card rounded-xl border border-orange-500/30 overflow-hidden">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-800 bg-gradient-to-r from-orange-500/10 to-red-500/10">
+      <div className="px-5 py-3 border-b border-gray-800 bg-gradient-to-r from-orange-500/10 to-red-500/10">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-orange-500/20 flex items-center justify-center">
-            <Settings className="w-5 h-5 text-orange-400" />
+          <div className="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center">
+            <Settings className="w-4 h-4 text-orange-400" />
           </div>
           <div>
-            <h3 className="font-orbitron font-bold text-white">Owner Admin</h3>
-            <p className="text-xs text-gray-400 font-rajdhani">Adjust token settings</p>
+            <h3 className="font-orbitron font-bold text-white text-sm">Owner Admin</h3>
+            <p className="text-[10px] text-gray-400 font-rajdhani">ForgedTaxTokenV2 controls</p>
           </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-gray-800">
-        {(['taxes', 'shares', 'tokens', 'limits'] as const).map((tab) => (
+      <div className="flex border-b border-gray-800 overflow-x-auto">
+        {(['taxes', 'shares', 'tokens', 'limits', 'manual'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => { setActiveTab(tab); reset(); }}
-            className={`flex-1 py-2 text-xs font-rajdhani font-semibold uppercase transition-colors ${
+            className={`flex-1 py-2 text-xs font-rajdhani font-semibold uppercase transition-colors whitespace-nowrap px-2 ${
               activeTab === tab
                 ? 'text-orange-400 border-b-2 border-orange-400 bg-orange-500/10'
                 : 'text-gray-500 hover:text-gray-300'
@@ -210,17 +200,18 @@ export function OwnerAdminPanel({
       </div>
 
       {/* Content */}
-      <div className="p-6">
+      <div className="p-5">
         {/* Taxes Tab */}
         {activeTab === 'taxes' && (
           <div className="space-y-4">
-            <p className="text-xs text-gray-400 font-rajdhani">Set buy and sell tax rates (in %)</p>
-            <div className="grid grid-cols-2 gap-4">
+            <p className="text-xs text-gray-400 font-rajdhani">Set buy and sell tax rates (in %). Max 25% each.</p>
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-gray-500 font-rajdhani">Buy Tax %</label>
                 <input
                   type="number"
                   step="0.1"
+                  max="25"
                   value={buyTax}
                   onChange={(e) => setBuyTax(e.target.value)}
                   className="w-full mt-1 px-3 py-2 bg-black/50 border border-gray-700 rounded-lg text-white font-mono text-sm focus:border-orange-500/50"
@@ -232,6 +223,7 @@ export function OwnerAdminPanel({
                 <input
                   type="number"
                   step="0.1"
+                  max="25"
                   value={sellTax}
                   onChange={(e) => setSellTax(e.target.value)}
                   className="w-full mt-1 px-3 py-2 bg-black/50 border border-gray-700 rounded-lg text-white font-mono text-sm focus:border-orange-500/50"
@@ -242,9 +234,9 @@ export function OwnerAdminPanel({
             <button
               onClick={handleSetTaxes}
               disabled={isPending || isConfirming || !buyTax || !sellTax}
-              className="w-full py-3 rounded-lg font-rajdhani font-bold text-sm bg-gradient-to-r from-orange-600 to-red-600 text-white hover:from-orange-500 hover:to-red-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full py-2.5 rounded-lg font-rajdhani font-bold text-sm bg-gradient-to-r from-orange-600 to-red-600 text-white hover:from-orange-500 hover:to-red-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {isPending ? 'Confirm in Wallet...' : isConfirming ? 'Updating...' : <><Save size={16} /> Update Taxes</>}
+              {isPending ? 'Confirm in Wallet...' : isConfirming ? 'Updating...' : <><Save size={14} /> Update Taxes</>}
             </button>
           </div>
         )}
@@ -277,49 +269,80 @@ export function OwnerAdminPanel({
               ))}
             </div>
             <div className={`text-xs font-mono text-center ${sharesTotal === 10000 ? 'text-green-400' : 'text-red-400'}`}>
-              Total: {sharesTotal} / 10000 {sharesTotal === 10000 ? '✓' : '(must equal 10000)'}
+              Total: {sharesTotal} / 10000 {sharesTotal === 10000 ? '' : '(must equal 10000)'}
             </div>
             <button
               onClick={handleSetShares}
               disabled={isPending || isConfirming || sharesTotal !== 10000}
-              className="w-full py-3 rounded-lg font-rajdhani font-bold text-sm bg-gradient-to-r from-orange-600 to-red-600 text-white hover:from-orange-500 hover:to-red-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full py-2.5 rounded-lg font-rajdhani font-bold text-sm bg-gradient-to-r from-orange-600 to-red-600 text-white hover:from-orange-500 hover:to-red-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {isPending ? 'Confirm in Wallet...' : isConfirming ? 'Updating...' : <><Save size={16} /> Update Shares</>}
+              {isPending ? 'Confirm in Wallet...' : isConfirming ? 'Updating...' : <><Save size={14} /> Update Shares</>}
             </button>
           </div>
         )}
 
-        {/* Tokens Tab */}
+        {/* Tokens Tab — Treasury Wallets, Yield Tokens, Support Tokens */}
         {activeTab === 'tokens' && (
           <div className="space-y-4">
-            <p className="text-xs text-gray-400 font-rajdhani">Set yield/support token addresses</p>
+            <p className="text-xs text-gray-400 font-rajdhani">
+              Set destination addresses. Comma-separate multiple. Shares auto-split evenly (sum to 10000 bps).
+            </p>
+
+            {/* Treasury Wallets */}
             <div>
-              <label className="text-xs text-gray-500 font-rajdhani">Yield Token Address</label>
+              <label className="text-xs text-gray-500 font-rajdhani">Treasury Wallet(s)</label>
               <input
                 type="text"
-                value={yieldTokenAddress}
-                onChange={(e) => setYieldTokenAddress(e.target.value)}
-                className="w-full mt-1 px-3 py-2 bg-black/50 border border-gray-700 rounded-lg text-white font-mono text-sm focus:border-orange-500/50"
+                value={treasuryWalletAddresses}
+                onChange={(e) => setTreasuryWalletAddresses(e.target.value)}
+                className="w-full mt-1 px-3 py-2 bg-black/50 border border-gray-700 rounded-lg text-white font-mono text-xs focus:border-orange-500/50"
                 placeholder="0x..."
               />
-            </div>
-            <button
-              onClick={handleSetYieldTokens}
-              disabled={isPending || isConfirming || !yieldTokenAddress}
-              className="w-full py-3 rounded-lg font-rajdhani font-bold text-sm bg-gradient-to-r from-orange-600 to-red-600 text-white hover:from-orange-500 hover:to-red-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {isPending ? 'Confirm in Wallet...' : isConfirming ? 'Updating...' : <><Save size={16} /> Set Yield Token</>}
-            </button>
-
-            <div className="border-t border-gray-800 pt-4">
               <button
-                onClick={handleManualSwap}
-                disabled={isPending || isConfirming}
-                className="w-full py-3 rounded-lg font-rajdhani font-bold text-sm bg-gradient-to-r from-cyan-600 to-blue-600 text-white hover:from-cyan-500 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleSetTreasuryWallets}
+                disabled={isPending || isConfirming || !treasuryWalletAddresses}
+                className="w-full mt-2 py-2 rounded-lg font-rajdhani font-bold text-xs bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isPending ? 'Confirm...' : isConfirming ? 'Processing...' : 'Trigger Manual Swap'}
+                {isPending ? 'Confirm...' : 'Set Treasury Wallets'}
               </button>
-              <p className="text-xs text-gray-500 mt-2 text-center">Forces distribution of pending taxes</p>
+            </div>
+
+            {/* Yield Tokens */}
+            <div>
+              <label className="text-xs text-gray-500 font-rajdhani">Yield Token(s)</label>
+              <input
+                type="text"
+                value={yieldTokenAddresses}
+                onChange={(e) => setYieldTokenAddresses(e.target.value)}
+                className="w-full mt-1 px-3 py-2 bg-black/50 border border-gray-700 rounded-lg text-white font-mono text-xs focus:border-orange-500/50"
+                placeholder="0x...,0x..."
+              />
+              <button
+                onClick={handleSetYieldTokens}
+                disabled={isPending || isConfirming || !yieldTokenAddresses}
+                className="w-full mt-2 py-2 rounded-lg font-rajdhani font-bold text-xs bg-purple-500/20 border border-purple-500/30 text-purple-400 hover:bg-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isPending ? 'Confirm...' : 'Set Yield Tokens'}
+              </button>
+            </div>
+
+            {/* Support Tokens */}
+            <div>
+              <label className="text-xs text-gray-500 font-rajdhani">Support Token(s)</label>
+              <input
+                type="text"
+                value={supportTokenAddresses}
+                onChange={(e) => setSupportTokenAddresses(e.target.value)}
+                className="w-full mt-1 px-3 py-2 bg-black/50 border border-gray-700 rounded-lg text-white font-mono text-xs focus:border-orange-500/50"
+                placeholder="0x..."
+              />
+              <button
+                onClick={handleSetSupportTokens}
+                disabled={isPending || isConfirming || !supportTokenAddresses}
+                className="w-full mt-2 py-2 rounded-lg font-rajdhani font-bold text-xs bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isPending ? 'Confirm...' : 'Set Support Tokens'}
+              </button>
             </div>
           </div>
         )}
@@ -327,30 +350,102 @@ export function OwnerAdminPanel({
         {/* Limits Tab */}
         {activeTab === 'limits' && (
           <div className="space-y-4">
-            <p className="text-xs text-gray-400 font-rajdhani">Set transaction limits (0 = no limit)</p>
-            <div className="grid grid-cols-2 gap-4">
+            <p className="text-xs text-gray-400 font-rajdhani">Set transaction limits (token amounts, 0 = no limit)</p>
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs text-gray-500 font-rajdhani">Max TX %</label>
+                <label className="text-xs text-gray-500 font-rajdhani">Max TX (tokens)</label>
                 <input
-                  type="number"
-                  value={maxTxPercent}
-                  onChange={(e) => setMaxTxPercent(e.target.value)}
+                  type="text"
+                  value={maxTxAmount}
+                  onChange={(e) => setMaxTxAmount(e.target.value)}
                   className="w-full mt-1 px-3 py-2 bg-black/50 border border-gray-700 rounded-lg text-white font-mono text-sm focus:border-orange-500/50"
                   placeholder="0"
                 />
               </div>
               <div>
-                <label className="text-xs text-gray-500 font-rajdhani">Max Wallet %</label>
+                <label className="text-xs text-gray-500 font-rajdhani">Max Wallet (tokens)</label>
                 <input
-                  type="number"
-                  value={maxWalletPercent}
-                  onChange={(e) => setMaxWalletPercent(e.target.value)}
+                  type="text"
+                  value={maxWalletAmount}
+                  onChange={(e) => setMaxWalletAmount(e.target.value)}
                   className="w-full mt-1 px-3 py-2 bg-black/50 border border-gray-700 rounded-lg text-white font-mono text-sm focus:border-orange-500/50"
                   placeholder="0"
                 />
               </div>
             </div>
-            <p className="text-xs text-gray-500">Note: Requires total supply to calculate actual amounts</p>
+            <button
+              onClick={handleSetLimits}
+              disabled={isPending || isConfirming}
+              className="w-full py-2.5 rounded-lg font-rajdhani font-bold text-sm bg-gradient-to-r from-orange-600 to-red-600 text-white hover:from-orange-500 hover:to-red-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isPending ? 'Confirm...' : isConfirming ? 'Updating...' : <><Save size={14} /> Set Limits</>}
+            </button>
+
+            {/* Fee Exclusion */}
+            <div className="border-t border-gray-800 pt-4">
+              <p className="text-xs text-gray-400 font-rajdhani mb-2">Exclude/include address from fees</p>
+              <input
+                type="text"
+                value={excludeAddress}
+                onChange={(e) => setExcludeAddress(e.target.value)}
+                className="w-full px-3 py-2 bg-black/50 border border-gray-700 rounded-lg text-white font-mono text-xs focus:border-orange-500/50"
+                placeholder="0x..."
+              />
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={() => { setExcludeValue(true); handleSetExcluded(); }}
+                  disabled={isPending || isConfirming || !excludeAddress}
+                  className="flex-1 py-2 rounded-lg font-rajdhani font-bold text-xs bg-green-500/20 border border-green-500/30 text-green-400 hover:bg-green-500/30 disabled:opacity-50 flex items-center justify-center gap-1"
+                >
+                  <Shield size={12} /> Exclude
+                </button>
+                <button
+                  onClick={() => { setExcludeValue(false); handleSetExcluded(); }}
+                  disabled={isPending || isConfirming || !excludeAddress}
+                  className="flex-1 py-2 rounded-lg font-rajdhani font-bold text-xs bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 disabled:opacity-50 flex items-center justify-center gap-1"
+                >
+                  Include
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Manual Triggers Tab */}
+        {activeTab === 'manual' && (
+          <div className="space-y-3">
+            <p className="text-xs text-gray-400 font-rajdhani">Manually trigger swapback and rescue functions</p>
+            <button
+              onClick={handleManualSwap}
+              disabled={isPending || isConfirming}
+              className="w-full py-3 rounded-lg font-rajdhani font-bold text-sm bg-gradient-to-r from-cyan-600 to-blue-600 text-white hover:from-cyan-500 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              <Zap size={16} />
+              {isPending ? 'Confirm...' : isConfirming ? 'Processing...' : 'Manual Swap (Full Swapback)'}
+            </button>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={handleRescueETH}
+                disabled={isPending || isConfirming}
+                className="py-2 rounded-lg font-rajdhani font-bold text-xs bg-green-500/20 border border-green-500/30 text-green-400 hover:bg-green-500/30 disabled:opacity-50"
+              >
+                Rescue PLS
+              </button>
+              <button
+                onClick={handleRescueTokens}
+                disabled={isPending || isConfirming || !rescueTokenAddr}
+                className="py-2 rounded-lg font-rajdhani font-bold text-xs bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/30 disabled:opacity-50"
+              >
+                Rescue Token
+              </button>
+            </div>
+            <input
+              type="text"
+              value={rescueTokenAddr}
+              onChange={(e) => setRescueTokenAddr(e.target.value)}
+              className="w-full px-3 py-2 bg-black/50 border border-gray-700 rounded-lg text-white font-mono text-xs focus:border-orange-500/50"
+              placeholder="Token address to rescue (for Rescue Token)"
+            />
           </div>
         )}
 
@@ -358,7 +453,7 @@ export function OwnerAdminPanel({
         {isSuccess && (
           <div className="mt-4 p-3 rounded-lg bg-green-500/20 border border-green-500/30 flex items-center gap-2">
             <CheckCircle className="w-4 h-4 text-green-400" />
-            <span className="text-green-400 font-rajdhani text-sm">Updated successfully!</span>
+            <span className="text-green-400 font-rajdhani text-sm">Transaction confirmed!</span>
           </div>
         )}
         {error && (

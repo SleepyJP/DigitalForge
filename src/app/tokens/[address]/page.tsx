@@ -16,6 +16,7 @@ import { TransactionFeed } from '@/components/dashboard/TransactionFeed';
 import { LiveChat } from '@/components/dashboard/LiveChat';
 import { MessageBoard } from '@/components/dashboard/MessageBoard';
 import { BuybackTokensPanel } from '@/components/dashboard/BuybackTokensPanel';
+import { OwnerAdminPanel } from '@/components/dashboard/OwnerAdminPanel';
 import { useTaxTokenData, isHiddenToken } from '@/hooks/useForgeTokens';
 import { getTokenMetadata, saveTokenMetadata, type StoredTokenMetadata } from '@/lib/tokenMetadataStore';
 import { resolveTokenImage, uploadToIPFS } from '@/lib/ipfs';
@@ -31,7 +32,6 @@ import {
   MessageCircle,
   Globe,
   Power,
-  Settings,
   Camera,
   Loader2,
 } from 'lucide-react';
@@ -433,56 +433,36 @@ export default function TokenPage() {
               {/* ════════════════════════════════════════════════════════════ */}
               <div className="lg:col-span-4 space-y-4">
 
-                {/* Owner Controls */}
-                {isOwner && (
+                {/* Owner Controls — Enable Trading + Full Admin Panel */}
+                {isOwner && !tokenData?.tradingEnabled && (
                   <div className="glass-card rounded-xl p-5 border border-orange-500/30 bg-gradient-to-br from-orange-500/10 to-pink-500/10">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center">
-                        <Settings className="w-4 h-4 text-orange-400" />
+                        <Power className="w-4 h-4 text-orange-400" />
                       </div>
-                      <h3 className="font-orbitron font-bold text-white text-sm">Owner Controls</h3>
+                      <h3 className="font-orbitron font-bold text-white text-sm">Enable Trading</h3>
                     </div>
-
-                    <div className="mb-3 p-2.5 rounded-lg bg-black/30 border border-gray-800">
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-400 font-rajdhani text-xs">Trading</span>
-                        <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-rajdhani font-semibold ${
-                            tokenData?.tradingEnabled
-                              ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                              : 'bg-red-500/20 text-red-400 border border-red-500/30'
-                          }`}
-                        >
-                          {tokenData?.tradingEnabled ? 'LIVE' : 'PAUSED'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {!tokenData?.tradingEnabled && (
-                      <button
-                        onClick={handleEnableTrading}
-                        disabled={isEnablingTrading || isWaitingForTrading}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-orbitron font-bold text-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r from-green-600 to-cyan-600 hover:from-green-500 hover:to-cyan-500 text-white"
-                      >
-                        {isEnablingTrading ? (
-                          <><span className="animate-spin">⟳</span> Confirm in Wallet...</>
-                        ) : isWaitingForTrading ? (
-                          <><span className="animate-spin">⟳</span> Enabling...</>
-                        ) : (
-                          <><Power className="w-3.5 h-3.5" /> Enable Trading</>
-                        )}
-                      </button>
-                    )}
-
+                    <button
+                      onClick={handleEnableTrading}
+                      disabled={isEnablingTrading || isWaitingForTrading}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-orbitron font-bold text-xs transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r from-green-600 to-cyan-600 hover:from-green-500 hover:to-cyan-500 text-white"
+                    >
+                      {isEnablingTrading ? (
+                        <><span className="animate-spin">&#x27F3;</span> Confirm in Wallet...</>
+                      ) : isWaitingForTrading ? (
+                        <><span className="animate-spin">&#x27F3;</span> Enabling...</>
+                      ) : (
+                        <><Power className="w-3.5 h-3.5" /> Enable Trading</>
+                      )}
+                    </button>
                     {tradingEnabled && (
-                      <div className="p-2 rounded-lg bg-green-500/20 border border-green-500/30">
+                      <div className="mt-2 p-2 rounded-lg bg-green-500/20 border border-green-500/30">
                         <div className="flex items-center gap-2 text-green-400">
                           <CheckCircle className="w-3.5 h-3.5" />
                           <span className="font-rajdhani text-xs">Trading enabled!</span>
                         </div>
                       </div>
                     )}
-
                     {enableTradingError && (
                       <div className="mt-2 p-2 rounded-lg bg-red-500/20 border border-red-500/30">
                         <p className="text-red-400 font-rajdhani text-xs">
@@ -491,6 +471,17 @@ export default function TokenPage() {
                       </div>
                     )}
                   </div>
+                )}
+
+                {/* Full Owner Admin Panel */}
+                {isTaxToken && (
+                  <OwnerAdminPanel
+                    tokenAddress={tokenAddress}
+                    isOwner={!!isOwner}
+                    currentBuyTax={tokenData?.buyTax}
+                    currentSellTax={tokenData?.sellTax}
+                    onSuccess={() => refetch()}
+                  />
                 )}
 
                 {/* SWAP WIDGET */}
@@ -518,10 +509,9 @@ export default function TokenPage() {
                     <RewardsClaimPanel
                       tokenAddress={tokenAddress}
                       tokenSymbol={tokenData?.symbol}
-                      pendingRewards={tokenData?.userPendingReflections}
-                      totalClaimed={tokenData?.userPendingYield}
+                      pendingRewards={tokenData?.totalReflections}
                       rewardTokenSymbol="PLS"
-                      rewardTokenDecimals={18}
+                      rewardTokenDecimals={tokenData?.decimals}
                       onClaimSuccess={() => refetch()}
                     />
                   </ErrorBoundary>
