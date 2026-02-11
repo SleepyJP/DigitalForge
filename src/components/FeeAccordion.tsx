@@ -128,13 +128,13 @@ interface FeeAccordionProps {
 }
 
 // Helper to calculate buy/sell from an entry
-// Unified: same rate applies to BOTH buy and sell (no division)
+// Unified: value applies to BUY only. Hit split to add sell side.
 // Split: separate buy/sell values
 const getEntryBuyTax = (entry: AddressEntry) =>
   entry.split ? entry.share : entry.share;
 
 const getEntrySellTax = (entry: AddressEntry) =>
-  entry.split ? entry.sellShare : entry.share;
+  entry.split ? entry.sellShare : 0;
 
 export default function FeeAccordion({ formData, onChange, showReceiveInPLS = true }: FeeAccordionProps) {
   const [expandedSection, setExpandedSection] = useState<string | null>('treasury');
@@ -159,7 +159,7 @@ export default function FeeAccordion({ formData, onChange, showReceiveInPLS = tr
       const sellShare = formData.reflectionShareSell || 0;
       const isSplit = formData.reflectionSplit || false;
       totalBuyTax += isSplit ? share : share;
-      totalSellTax += isSplit ? sellShare : share;
+      totalSellTax += isSplit ? sellShare : 0;
     }
   });
 
@@ -245,7 +245,7 @@ function FeeSectionComponent({ section, formData, onChange, isExpanded, onToggle
     const sellShare = formData.reflectionShareSell || 0;
     const isSplit = formData.reflectionSplit || false;
     sectionBuyTax = isSplit ? share : share;
-    sectionSellTax = isSplit ? sellShare : share;
+    sectionSellTax = isSplit ? sellShare : 0;
   }
 
   const hasAnyTax = sectionBuyTax > 0 || sectionSellTax > 0;
@@ -455,7 +455,7 @@ function FeeSectionComponent({ section, formData, onChange, isExpanded, onToggle
                       </div>
                       {entry.share > 0 && (
                         <div className="text-xs text-gray-500 mt-1 text-right">
-                          = {entry.share}% buy &amp; {entry.share}% sell
+                          = {entry.share}% buy only — split to add sell
                         </div>
                       )}
                     </div>
@@ -587,7 +587,7 @@ function FeeSectionComponent({ section, formData, onChange, isExpanded, onToggle
                   </div>
                   {reflectionShare > 0 && (
                     <div className="text-xs text-gray-500 mt-1 text-right">
-                      = {reflectionShare}% buy &amp; {reflectionShare}% sell
+                      = {reflectionShare}% buy only — split to add sell
                     </div>
                   )}
                 </div>

@@ -236,7 +236,7 @@ export function useForgeToken() {
     // Calculate totals from all address entries
 
     const getEntryBuyTax = (e: AddressEntry) => e.split ? e.share : e.share;
-    const getEntrySellTax = (e: AddressEntry) => e.split ? e.sellShare : e.share;
+    const getEntrySellTax = (e: AddressEntry) => e.split ? e.sellShare : 0;
 
     // Sum from all address entries
     const sumEntries = (entries: AddressEntry[] | undefined) => {
@@ -255,7 +255,7 @@ export function useForgeToken() {
 
     // Reflection uses legacy fields (no addresses)
     const reflectionBuy = formData.reflectionSplit ? formData.reflectionShare : (formData.reflectionShare || 0);
-    const reflectionSell = formData.reflectionSplit ? formData.reflectionShareSell : (formData.reflectionShare || 0);
+    const reflectionSell = formData.reflectionSplit ? formData.reflectionShareSell : 0;
 
     // Calculate total BUY and SELL taxes
     const totalBuyAllocated = treasuryTotals.buy + burnTotals.buy + reflectionBuy +
@@ -405,7 +405,7 @@ export function validateFormData(formData: TokenFormData): { valid: boolean; err
     isSplit ? unifiedShare : unifiedShare;
 
   const getSellTax = (unifiedShare: number, sellShare: number, isSplit: boolean) =>
-    isSplit ? sellShare : unifiedShare;
+    isSplit ? sellShare : 0;
 
   const totalBuyTax =
     getBuyTax(formData.treasuryShare, formData.treasurySplit) +
