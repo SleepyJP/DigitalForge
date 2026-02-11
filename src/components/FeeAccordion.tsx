@@ -128,13 +128,12 @@ interface FeeAccordionProps {
 }
 
 // Helper to calculate buy/sell from an entry
-// Unified: value applies to BUY only. Hit split to add sell side.
-// Split: separate buy/sell values
-const getEntryBuyTax = (entry: AddressEntry) =>
-  entry.split ? entry.share : entry.share;
+// Unified: same rate on both buy AND sell
+// Split: separate independent buy/sell values
+const getEntryBuyTax = (entry: AddressEntry) => entry.share;
 
 const getEntrySellTax = (entry: AddressEntry) =>
-  entry.split ? entry.sellShare : 0;
+  entry.split ? entry.sellShare : entry.share;
 
 export default function FeeAccordion({ formData, onChange, showReceiveInPLS = true }: FeeAccordionProps) {
   const [expandedSection, setExpandedSection] = useState<string | null>('treasury');
@@ -158,12 +157,10 @@ export default function FeeAccordion({ formData, onChange, showReceiveInPLS = tr
       const share = formData.reflectionShare || 0;
       const sellShare = formData.reflectionShareSell || 0;
       const isSplit = formData.reflectionSplit || false;
-      totalBuyTax += isSplit ? share : share;
-      totalSellTax += isSplit ? sellShare : 0;
+      totalBuyTax += share;
+      totalSellTax += isSplit ? sellShare : share;
     }
   });
-
-  const taxesMatch = Math.abs(totalBuyTax - totalSellTax) < 0.001;
 
   return (
     <div className="space-y-2">
@@ -171,23 +168,16 @@ export default function FeeAccordion({ formData, onChange, showReceiveInPLS = tr
       <div className="p-4 rounded-lg bg-gray-900 border border-cyan-500/30">
         <div className="text-center">
           <div className="text-xs text-gray-400 mb-2">TOTAL TAX</div>
-          {taxesMatch ? (
-            <>
-              <div className="text-4xl font-bold text-cyan-400">{totalBuyTax}%</div>
-              <div className="text-xs text-gray-500 mt-1">Buy & Sell</div>
-            </>
-          ) : (
-            <div className="flex justify-center gap-8">
-              <div>
-                <div className="text-3xl font-bold text-green-400">{totalBuyTax}%</div>
-                <div className="text-xs text-gray-500">BUY</div>
-              </div>
-              <div>
-                <div className="text-3xl font-bold text-red-400">{totalSellTax}%</div>
-                <div className="text-xs text-gray-500">SELL</div>
-              </div>
+          <div className="flex justify-center gap-8">
+            <div>
+              <div className="text-3xl font-bold text-green-400">{totalBuyTax}%</div>
+              <div className="text-xs text-gray-500">BUY</div>
             </div>
-          )}
+            <div>
+              <div className="text-3xl font-bold text-red-400">{totalSellTax}%</div>
+              <div className="text-xs text-gray-500">SELL</div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -244,12 +234,11 @@ function FeeSectionComponent({ section, formData, onChange, isExpanded, onToggle
     const share = formData.reflectionShare || 0;
     const sellShare = formData.reflectionShareSell || 0;
     const isSplit = formData.reflectionSplit || false;
-    sectionBuyTax = isSplit ? share : share;
-    sectionSellTax = isSplit ? sellShare : 0;
+    sectionBuyTax = share;
+    sectionSellTax = isSplit ? sellShare : share;
   }
 
   const hasAnyTax = sectionBuyTax > 0 || sectionSellTax > 0;
-  const sectionTaxesMatch = Math.abs(sectionBuyTax - sectionSellTax) < 0.001;
 
   // Update entries and sync legacy fields
   const updateEntries = (newEntries: AddressEntry[]) => {
@@ -330,18 +319,12 @@ function FeeSectionComponent({ section, formData, onChange, isExpanded, onToggle
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {/* Show section total in header */}
-          {sectionTaxesMatch ? (
-            <div className={`px-3 py-1 rounded text-lg font-mono font-bold ${hasAnyTax ? section.color : 'text-gray-600'}`}>
-              {sectionBuyTax > 0 ? `${sectionBuyTax}%` : '0%'}
-            </div>
-          ) : (
-            <div className="flex gap-2 text-sm font-mono">
-              <span className={sectionBuyTax > 0 ? 'text-green-400' : 'text-gray-600'}>{sectionBuyTax}%B</span>
-              <span className="text-gray-600">/</span>
-              <span className={sectionSellTax > 0 ? 'text-red-400' : 'text-gray-600'}>{sectionSellTax}%S</span>
-            </div>
-          )}
+          {/* Show section buy/sell in header */}
+          <div className="flex gap-2 text-sm font-mono">
+            <span className={sectionBuyTax > 0 ? 'text-green-400' : 'text-gray-600'}>{sectionBuyTax}%B</span>
+            <span className="text-gray-600">/</span>
+            <span className={sectionSellTax > 0 ? 'text-red-400' : 'text-gray-600'}>{sectionSellTax}%S</span>
+          </div>
           <span className={`material-icons text-gray-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
             expand_more
           </span>
@@ -455,7 +438,7 @@ function FeeSectionComponent({ section, formData, onChange, isExpanded, onToggle
                       </div>
                       {entry.share > 0 && (
                         <div className="text-xs text-gray-500 mt-1 text-right">
-                          = {entry.share}% buy only — split to add sell
+                          = {entry.share}% on buys and sells
                         </div>
                       )}
                     </div>
@@ -587,7 +570,7 @@ function FeeSectionComponent({ section, formData, onChange, isExpanded, onToggle
                   </div>
                   {reflectionShare > 0 && (
                     <div className="text-xs text-gray-500 mt-1 text-right">
-                      = {reflectionShare}% buy only — split to add sell
+                      = {reflectionShare}% on buys and sells
                     </div>
                   )}
                 </div>

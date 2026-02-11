@@ -25,9 +25,9 @@ const OWNABLE_ABI = [
 // Address entry with percentage share for multi-address support
 export interface AddressEntry {
   address: string;
-  share: number; // Tax % (unified = total split 50/50, split = buy %)
+  share: number; // Tax % (unified = same rate on buy & sell, split = buy %)
   sellShare: number; // Sell % (only used when split=true)
-  split: boolean; // true = separate buy/sell, false = unified (50/50)
+  split: boolean; // true = separate buy/sell, false = unified (same rate both sides)
 }
 
 export interface TokenFormData {
@@ -235,8 +235,8 @@ export function useForgeToken() {
     // Each address entry has its own tax % and split toggle
     // Calculate totals from all address entries
 
-    const getEntryBuyTax = (e: AddressEntry) => e.split ? e.share : e.share;
-    const getEntrySellTax = (e: AddressEntry) => e.split ? e.sellShare : 0;
+    const getEntryBuyTax = (e: AddressEntry) => e.share;
+    const getEntrySellTax = (e: AddressEntry) => e.split ? e.sellShare : e.share;
 
     // Sum from all address entries
     const sumEntries = (entries: AddressEntry[] | undefined) => {
@@ -254,8 +254,8 @@ export function useForgeToken() {
     const supportTotals = sumEntries(formData.supportTokens);
 
     // Reflection uses legacy fields (no addresses)
-    const reflectionBuy = formData.reflectionSplit ? formData.reflectionShare : (formData.reflectionShare || 0);
-    const reflectionSell = formData.reflectionSplit ? formData.reflectionShareSell : 0;
+    const reflectionBuy = formData.reflectionShare || 0;
+    const reflectionSell = formData.reflectionSplit ? formData.reflectionShareSell : (formData.reflectionShare || 0);
 
     // Calculate total BUY and SELL taxes
     const totalBuyAllocated = treasuryTotals.buy + burnTotals.buy + reflectionBuy +
@@ -398,14 +398,14 @@ export function validateFormData(formData: TokenFormData): { valid: boolean; err
   }
 
   // Calculate total taxes
-  // - Unified mode: entered % is TOTAL, split 50/50 between buy and sell
+  // - Unified mode: same rate on both buy and sell
   // - Split mode: buy and sell are entered separately
 
-  const getBuyTax = (unifiedShare: number, isSplit: boolean) =>
-    isSplit ? unifiedShare : unifiedShare;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const getBuyTax = (unifiedShare: number, _isSplit: boolean) => unifiedShare;
 
   const getSellTax = (unifiedShare: number, sellShare: number, isSplit: boolean) =>
-    isSplit ? sellShare : 0;
+    isSplit ? sellShare : unifiedShare;
 
   const totalBuyTax =
     getBuyTax(formData.treasuryShare, formData.treasurySplit) +

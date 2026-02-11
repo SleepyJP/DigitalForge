@@ -341,7 +341,7 @@ export default function ForgePage() {
                 Tax Configuration
               </h2>
               <p className="text-gray-500 font-rajdhani text-sm mb-6">
-                Add tax allocations below. Use UNIFIED for 50/50 buy/sell, or SPLIT for different rates.
+                Add tax allocations below. UNIFIED = same rate on buys and sells. SPLIT = different buy/sell rates.
               </p>
 
               {/* Fee Distribution Accordion - always shown, calculates total tax */}
