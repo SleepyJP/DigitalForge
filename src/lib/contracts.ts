@@ -462,6 +462,37 @@ export const ERC20_ABI = [
   },
 ] as const;
 
+// PaisleySmartToken ABI (from PaisleyProtocolDigitalForge.sol)
+// Uses getTaxes() returning Tax[] struct array instead of separate buyTax/sellTax
+export const PAISLEY_SMART_TOKEN_ABI = [
+  ...ERC20_ABI,
+  { inputs: [], name: 'getTaxes', outputs: [{ type: 'tuple[]', components: [
+    { name: 'id', type: 'uint256' },
+    { name: 'taxType', type: 'uint8' },
+    { name: 'taxMoment', type: 'uint8' },
+    { name: 'percentage', type: 'uint256' },
+    { name: 'receiver', type: 'address' },
+    { name: 'tokenAddress', type: 'address' },
+    { name: 'burnAddress', type: 'address' },
+    { name: 'rewardInPls', type: 'bool' },
+    { name: 'amountAccumulated', type: 'uint256' },
+    { name: 'total', type: 'uint256' },
+  ]}], stateMutability: 'view', type: 'function' },
+  { inputs: [], name: 'getTotalTaxs', outputs: [{ type: 'uint256' }], stateMutability: 'view', type: 'function' },
+  { inputs: [], name: 'tradingEnabled', outputs: [{ type: 'bool' }], stateMutability: 'view', type: 'function' },
+  { inputs: [], name: 'enableTrading', outputs: [], stateMutability: 'nonpayable', type: 'function' },
+  { inputs: [], name: 'forceProcessAccumulatedTaxes', outputs: [], stateMutability: 'nonpayable', type: 'function' },
+  { inputs: [{ name: '_address', type: 'address' }], name: 'addTaxExclusion', outputs: [], stateMutability: 'nonpayable', type: 'function' },
+  { inputs: [{ name: '_address', type: 'address' }], name: 'removeTaxExclusion', outputs: [], stateMutability: 'nonpayable', type: 'function' },
+  { inputs: [], name: 'renounceOwnership', outputs: [], stateMutability: 'nonpayable', type: 'function' },
+  { inputs: [{ name: 'newOwner', type: 'address' }], name: 'transferOwnership', outputs: [], stateMutability: 'nonpayable', type: 'function' },
+] as const;
+
+// TaxMoment enum from PaisleySmartToken
+export enum TaxMoment { Both = 0, Buy = 1, Sell = 2 }
+// TaxType enum from PaisleySmartToken
+export enum PaisleyTaxType { Burn = 0, ExternalBurn = 1, Dev = 2, Reflection = 3, Yield = 4, Liquify = 5 }
+
 // Forged Tax Token ABI (V2/V3 compatible — array-based getters)
 export const FORGED_TOKEN_ABI = [
   ...ERC20_ABI,

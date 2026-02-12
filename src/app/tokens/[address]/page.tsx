@@ -127,7 +127,7 @@ export default function TokenPage() {
     }
   };
 
-  const isTaxToken = tokenData?.tokenType === 'FORGE';
+  const isTaxToken = tokenData?.tokenType === 'FORGE' || tokenData?.tokenType === 'PAISLEY';
 
   // Image replacement for token owner
   const imageInputRef = useRef<HTMLInputElement>(null);

@@ -54,7 +54,7 @@ export default function TokensPage() {
 
     // Apply type filter
     if (filter === 'forge') {
-      result = result.filter((t) => t.tokenType === 'FORGE');
+      result = result.filter((t) => t.tokenType === 'FORGE' || t.tokenType === 'PAISLEY');
     } else if (filter === 'simple') {
       result = result.filter((t) => t.tokenType === 'SIMPLE');
     } else if (filter === 'my-tokens') {
@@ -250,7 +250,7 @@ interface TokenCardProps {
 }
 
 function TokenCard({ token, isOwned }: TokenCardProps) {
-  const isTaxToken = token.tokenType === 'FORGE';
+  const isTaxToken = token.tokenType === 'FORGE' || token.tokenType === 'PAISLEY';
   const hasTaxes = (token.buyTax && token.buyTax > 0n) || (token.sellTax && token.sellTax > 0n);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
 

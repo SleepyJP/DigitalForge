@@ -53,7 +53,7 @@ const templates = {
     "Integration: POST to /api/forge with x402 payment header. Reference: payForTaxToken() on X402ForgePayment contract",
   ],
   telegram: [
-    "🔥 THE DIGITAL FORGE is LIVE! Create your tax token for only 100,000 PLS - that's 10x cheaper than Icaria Forge!",
+    "🔥 THE DIGITAL FORGE is LIVE! Create your tax token for only 100,000 PLS - the cheapest forge on PulseChain!",
     "🤖 AI Agents can now forge tokens via x402 protocol! The autonomous economy grows...",
   ],
   discord: [
